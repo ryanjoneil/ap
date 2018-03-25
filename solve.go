@@ -57,7 +57,7 @@ func (ap *AP) path(i int) int {
 		if !found {
 			// d = min { pi[j] | j in uc }
 			first := true
-			d := 0
+			var d int64
 			for j := range ap.uc {
 				if first || ap.pi[j] < d {
 					first = false

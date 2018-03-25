@@ -66,7 +66,7 @@ func (ap *AP) initializePhase2() {
 
 func (ap *AP) minRow(j int) int {
 	first := true
-	minVal := 0
+	var minVal int64
 	minRow := 0
 
 	for i := 0; i < ap.Size; i++ {
@@ -82,7 +82,7 @@ func (ap *AP) minRow(j int) int {
 
 func (ap *AP) minCol(i int) int {
 	first := true
-	minVal := 0
+	var minVal int64
 	minCol := 0
 
 	for j := 0; j < ap.Size; j++ {

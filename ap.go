@@ -19,10 +19,10 @@ package ap
 
 // AP represents a Primal-Dual Assignment Problem.
 type AP struct {
-	A [][]int // A[i][j] = cost of assigning row i to column j
-	U []int   // U[i] = dual price for row i
-	V []int   // V[j] = dual price for column j
-	Z int     // Objective value
+	A [][]int64 // A[i][j] = cost of assigning row i to column j
+	U []int64   // U[i] = dual price for row i
+	V []int64   // V[j] = dual price for column j
+	Z int64     // Objective value
 
 	f    []int        // f[i] = column assigned to row i, -1 if unassigned
 	fBar []int        // fBar[j] = row assigned to column j, -1 if unassigned
@@ -30,7 +30,7 @@ type AP struct {
 	lr   []int        // Vector of labelled rows
 	uc   map[int]bool // Set of unlabelled columns
 	c    []int        // c[j] = row preceding column j in current alternating path
-	pi   []int        // pi[j] = min { a[i,j] - u[i] - v[j] | i in lr, i != fBar[j] }
+	pi   []int64      // pi[j] = min { a[i,j] - u[i] - v[j] | i in lr, i != fBar[j] }
 
 	Size        int
 	initialized bool // true if row and column reductions have been done
@@ -52,12 +52,12 @@ func (ap *AP) Row(i int) int {
 }
 
 // RC returns the reduced cost of an arc.
-func (ap *AP) RC(i, j int) int {
+func (ap *AP) RC(i, j int) int64 {
 	return ap.A[i][j] - ap.U[i] - ap.V[j]
 }
 
 // Remove takes an arc out of the solution and gives it a new objective value.
-func (ap *AP) Remove(i, j int, obj int) {
+func (ap *AP) Remove(i, j int, obj int64) {
 	if ap.f[i] == j {
 		ap.f[i] = -1
 		ap.fBar[j] = -1

@@ -50,7 +50,7 @@ An `AP` instance has the following methods and attributes.
 The following example shows how to optimize a simple 5x5 AP. First initialize the solver with the correct size (5 in this case). Set the objective value of each cell in `A`. Then simply call `Solve`. This algorithm runs in `O(n^3)` time.
 
 ```go
-obj := [][]int{
+obj := [][]int64{
     {25, 40, 9, 15},
     {12, 33, 22, 31},
     {18, 37, 18, 30},
@@ -91,7 +91,7 @@ X =   -  -  -  1
 A more complex use case removes arcs from the AP's feasible set. In this case we don't want those arcs being added back in subsequent solutions, so we set their objective values to something large (`M`) to discourage that. The first call to `solve` runs in `O(n^3)` time, while subsequent calls after an arc removal run in `O(n^2)`.
 
 ```go
-M := 1000
+var M int64 = 1000
 ap.Remove(2, 2, M)
 ap.Solve()
 ```

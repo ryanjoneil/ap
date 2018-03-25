@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func check(t *testing.T, ap *AP, Z int, U, V []int, RC, X [][]int) {
+func check(t *testing.T, ap *AP, Z int64, U, V []int64, RC [][]int64, X [][]int) {
 	if Z != ap.Z {
 		t.Errorf("expected Z = %v; got %v", Z, ap.Z)
 	}
@@ -36,7 +36,7 @@ func check(t *testing.T, ap *AP, Z int, U, V []int, RC, X [][]int) {
 
 func TestSolve(t *testing.T) {
 	// Input.
-	A := [][]int{
+	A := [][]int64{
 		{25, 40, 9, 15},
 		{12, 33, 22, 31},
 		{18, 37, 18, 30},
@@ -44,10 +44,10 @@ func TestSolve(t *testing.T) {
 	}
 
 	// Expected outputs.
-	Z := 56
-	U := []int{0, 3, 9, 0}
-	V := []int{9, 11, 9, 15}
-	RC := [][]int{
+	var Z int64 = 56
+	U := []int64{0, 3, 9, 0}
+	V := []int64{9, 11, 9, 15}
+	RC := [][]int64{
 		{16, 29, 0, 0},
 		{0, 19, 10, 13},
 		{0, 17, 0, 6},
@@ -71,7 +71,7 @@ func TestSolve(t *testing.T) {
 	check(t, ap, Z, U, V, RC, X)
 
 	// Remove arcs, re-optimize, and check.
-	M := 1000
+	var M int64 = 1000
 	ap.Remove(2, 2, M)
 	ap.Remove(1, 0, M)
 	ap.Remove(0, 3, M)
@@ -79,10 +79,10 @@ func TestSolve(t *testing.T) {
 	ap.Remove(2, 0, M)
 	ap.Remove(3, 3, M)
 
-	Z2 := 100
-	U2 := []int{16, 22, 21, 19}
-	V2 := []int{9, 11, -7, 9}
-	RC2 := [][]int{
+	var Z2 int64 = 100
+	U2 := []int64{16, 22, 21, 19}
+	V2 := []int64{9, 11, -7, 9}
+	RC2 := [][]int64{
 		{0, 13, 0, 975},
 		{969, 0, 7, 0},
 		{970, 5, 986, 0},
