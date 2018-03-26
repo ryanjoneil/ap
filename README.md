@@ -72,9 +72,9 @@ You can now examine the solution by looking at `Z`, `U`, `V`, and by calling `RC
 $ go run example/main.go
 ```
 ```
-Z =	56
-U =	[0 3 9 0]
-V =	[9 11 9 15]
+Z = 56
+U = [0 3 9 0]
+V = [9 11 9 15]
 
 RC = 16 29  0  0
       0 19 10 13
