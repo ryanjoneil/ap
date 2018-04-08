@@ -28,8 +28,6 @@ func Create(size int) *AP {
 		f:    f,
 		fBar: fBar,
 		p:    p,
-		lr:   []int{},
-		uc:   map[int]bool{},
 		c:    c,
 		pi:   pi,
 		Size: size,

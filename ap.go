@@ -24,13 +24,11 @@ type AP struct {
 	V []int64   // V[j] = dual price for column j
 	Z int64     // Objective value
 
-	f    []int        // f[i] = column assigned to row i, -1 if unassigned
-	fBar []int        // fBar[j] = row assigned to column j, -1 if unassigned
-	p    []int        // First column of row i not yet examined in phase 2
-	lr   []int        // Vector of labelled rows
-	uc   map[int]bool // Set of unlabelled columns
-	c    []int        // c[j] = row preceding column j in current alternating path
-	pi   []int64      // pi[j] = min { a[i,j] - u[i] - v[j] | i in lr, i != fBar[j] }
+	f    []int   // f[i] = column assigned to row i, -1 if unassigned
+	fBar []int   // fBar[j] = row assigned to column j, -1 if unassigned
+	p    []int   // First column of row i not yet examined in phase 2
+	c    []int   // c[j] = row preceding column j in current alternating path
+	pi   []int64 // pi[j] = min { a[i,j] - u[i] - v[j] | i in lr, i != fBar[j] }
 
 	Size        int
 	initialized bool // true if row and column reductions have been done
