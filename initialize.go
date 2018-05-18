@@ -34,6 +34,9 @@ func (ap *AP) initializePhase2() {
 		for !assign && j < ap.Size {
 			if ap.A[i][j]-ap.U[i]-ap.V[j] == 0 {
 				r := ap.fBar[j]
+				if r < 0 {
+					break
+				}
 				k := ap.p[r]
 
 				for !assign && k < ap.Size {
