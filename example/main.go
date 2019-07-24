@@ -16,9 +16,7 @@ func main() {
 
 	ap := ap.Create(len(obj))
 	for i, row := range obj {
-		for j, val := range row {
-			ap.A[i][j] = val
-		}
+		copy(ap.A[i], row)
 	}
 	ap.Solve()
 
