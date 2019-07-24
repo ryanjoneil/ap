@@ -1,8 +1,12 @@
-# ap: Incremental Primal-Dual Assignment Problem Solver
+# ap
+
+Incremental Primal-Dual Assignment Problem Solver
+
+[![Build Status](https://semaphoreci.com/api/v1/ryanjoneil/ap/branches/master/badge.svg)](https://semaphoreci.com/ryanjoneil/ap)
 
 This code provides a Go implementation of an incremental primal-dual assignment problem solver. It is a port of the original Fortran for the dense AP discussed in the following paper.
 
-```
+```text
 Giorgio Carpaneto, Silvano Martello, and Paolo Toth.
 "Algorithms and codes for the assignment problem."
 Annals of Operations Research 13, no. 1 (1988): 191-223.
@@ -10,26 +14,26 @@ Annals of Operations Research 13, no. 1 (1988): 191-223.
 
 This code can efficiently optimize any model in the form of an Assignment Problem.
 
-```
+```math
 min   sum {i,j} c_ij * x_ij
 s.t.  sum {i} x_ij = 1       for all j
       sum {j} x_ij = 1       for all i
       x_ij in {0,1}          for all i, j
 ```
 
-## What is this for?
+## Purpose
 
 While there are a number of codes available for solving APs directly, and indeed a Linear Optimization solver can also make quick work of them, most implementations are not intended for _incremental_ solution. Incremental solving of assignment problems is important when an AP forms a relaxation of some other model, such as a Traveling Salesman Problem, and variable filtering is achieved through reduced cost-based domain filtering.
 
 In such scenarios, an initial relaxation of a more complex model into an AP is solved in `O(n^3)` time, arcs are typically removed from the AP solution in the search tree, and successive solutions that do not include those arcs are computed in `O(n^2)` time. The efficiency gained by incremental solution makes the AP relaxation effective in furthering domain propagation. See the following paper for more details.
 
-```
+```txt
 Filippo Focacci, Andrea Lodi, and Michela Milano.
 "A hybrid exact algorithm for the TSPTW."
 INFORMS Journal on Computing 14, no. 4 (2002): 403-417.
 ```
 
-## How do I use it?
+## Usage
 
 An `AP` instance has the following methods and attributes.
 
@@ -68,10 +72,11 @@ ap.Solve()
 
 You can now examine the solution by looking at `Z`, `U`, `V`, and by calling `RC` and `X`. See the example and test code for more details.
 
+```bash
+go run example/main.go
 ```
-$ go run example/main.go
-```
-```
+
+```text
 Z = 56
 U = [0 3 9 0]
 V = [9 11 9 15]
@@ -86,6 +91,7 @@ X =   -  -  -  1
       -  -  1  -
       -  1  -  -
 ```
+
 ### Incremental Example
 
 A more complex use case removes arcs from the AP's feasible set. In this case we don't want those arcs being added back in subsequent solutions, so we set their objective values to something large (`M`) to discourage that. The first call to `solve` runs in `O(n^3)` time, while subsequent calls after an arc removal run in `O(n^2)`.
