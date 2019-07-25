@@ -7,7 +7,7 @@ func (ap *AP) initialize() {
 	ap.initialized = true
 }
 
-func (ap *AP) initializePhase1() {
+func (ap AP) initializePhase1() {
 	for j := 0; j < ap.Size; j++ {
 		r := ap.minRow(j)
 		ap.V[j] = ap.A[r][j]
@@ -20,7 +20,7 @@ func (ap *AP) initializePhase1() {
 	}
 }
 
-func (ap *AP) initializePhase2() {
+func (ap AP) initializePhase2() {
 	for i := 0; i < ap.Size; i++ {
 		if ap.f[i] >= 0 {
 			continue
@@ -67,7 +67,7 @@ func (ap *AP) initializePhase2() {
 	}
 }
 
-func (ap *AP) minRow(j int) int {
+func (ap AP) minRow(j int) int {
 	first := true
 	var minVal int64
 	minRow := 0
@@ -83,7 +83,7 @@ func (ap *AP) minRow(j int) int {
 	return minRow
 }
 
-func (ap *AP) minCol(i int) int {
+func (ap AP) minCol(i int) int {
 	first := true
 	var minVal int64
 	minCol := 0

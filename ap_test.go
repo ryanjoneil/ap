@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func check(t *testing.T, ap *AP, Z int64, U, V []int64, RC [][]int64, X [][]int) {
+func check(t *testing.T, ap AP, Z int64, U, V []int64, RC [][]int64, X [][]int) {
 	if Z != ap.Z {
 		t.Errorf("expected Z = %v; got %v", Z, ap.Z)
 	}

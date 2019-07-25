@@ -1,8 +1,6 @@
 package ap
 
-import (
-	"math"
-)
+import "math"
 
 // Solve updates A, U, V, and Z to the optimal AP solution.
 func (ap *AP) Solve() {
@@ -25,7 +23,7 @@ func (ap *AP) Solve() {
 	}
 }
 
-func (ap *AP) path(i int) int {
+func (ap AP) path(i int) int {
 	lr := []int{i}       // Vector of labelled rows
 	uc := map[int]bool{} // Set of unlabelled columns
 
@@ -102,7 +100,7 @@ func (ap *AP) path(i int) int {
 	return -1
 }
 
-func (ap *AP) increase(i, j int) {
+func (ap AP) increase(i, j int) {
 	for {
 		l := ap.c[j]
 		ap.fBar[j] = l

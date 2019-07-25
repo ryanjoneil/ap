@@ -1,7 +1,7 @@
 package ap
 
 // Copy duplicates an assignment problem.
-func (ap *AP) Copy() *AP {
+func (ap AP) Copy() AP {
 	A := make([][]int64, ap.Size)
 	U := make([]int64, ap.Size)
 	V := make([]int64, ap.Size)
@@ -24,7 +24,7 @@ func (ap *AP) Copy() *AP {
 	copy(c, ap.c)
 	copy(pi, ap.pi)
 
-	return &AP{
+	return AP{
 		A: A,
 		U: U,
 		V: V,

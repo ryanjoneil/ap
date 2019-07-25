@@ -9,7 +9,7 @@ import (
 const max = 100000
 const M = max * 1000
 
-func randomAP(n int) *AP {
+func randomAP(n int) AP {
 	rand.Seed(time.Now().UTC().UnixNano())
 	ap := Create(n)
 	for i := 0; i < n; i++ {

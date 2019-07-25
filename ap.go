@@ -35,27 +35,27 @@ type AP struct {
 }
 
 // X returns true if row i is assigned to column j, false if not.
-func (ap *AP) X(i, j int) bool {
+func (ap AP) X(i, j int) bool {
 	return ap.Col(i) == j
 }
 
 // Col returns the column assigned to row i, -1 if none assigned.
-func (ap *AP) Col(i int) int {
+func (ap AP) Col(i int) int {
 	return ap.f[i]
 }
 
 // Row returns the row assigned to column j, -1 if none assigned.
-func (ap *AP) Row(i int) int {
+func (ap AP) Row(i int) int {
 	return ap.fBar[i]
 }
 
 // RC returns the reduced cost of an arc.
-func (ap *AP) RC(i, j int) int64 {
+func (ap AP) RC(i, j int) int64 {
 	return ap.A[i][j] - ap.U[i] - ap.V[j]
 }
 
 // Remove takes an arc out of the solution and gives it a new objective value.
-func (ap *AP) Remove(i, j int, obj int64) {
+func (ap AP) Remove(i, j int, obj int64) {
 	if ap.f[i] == j {
 		ap.f[i] = -1
 		ap.fBar[j] = -1

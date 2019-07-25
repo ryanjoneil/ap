@@ -1,7 +1,7 @@
 package ap
 
 // Create instantiates an Assignment Problem of a given size.
-func Create(size int) *AP {
+func Create(size int) AP {
 	A := make([][]int64, size) // 0
 	for r := 0; r < size; r++ {
 		A[r] = make([]int64, size)
@@ -21,7 +21,7 @@ func Create(size int) *AP {
 		pi[i] = -1
 	}
 
-	return &AP{
+	return AP{
 		A:    A,
 		U:    make([]int64, size),
 		V:    make([]int64, size),
