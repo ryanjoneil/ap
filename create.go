@@ -1,12 +1,17 @@
 package ap
 
-// Create instantiates an Assignment Problem of a given size.
-func Create(size int) AP {
-	A := make([][]int64, size) // 0
-	for r := 0; r < size; r++ {
-		A[r] = make([]int64, size)
+// New assignment problem from a square cost matrix.
+func New(A [][]int64) AP {
+	if len(A) < 1 {
+		panic("empty cost matrix")
+	}
+	for _, row := range A {
+		if len(row) != len(A) {
+			panic("cost matrix not square")
+		}
 	}
 
+	size := len(A)
 	f := make([]int, size)
 	fBar := make([]int, size)
 	p := make([]int, size)

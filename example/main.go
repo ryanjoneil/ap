@@ -7,17 +7,12 @@ import (
 )
 
 func main() {
-	obj := [][]int64{
+	ap := ap.New([][]int64{
 		{25, 40, 9, 15},
 		{12, 33, 22, 31},
 		{18, 37, 18, 30},
 		{32, 11, 12, 26},
-	}
-
-	ap := ap.Create(len(obj))
-	for i, row := range obj {
-		copy(ap.A[i], row)
-	}
+	})
 	ap.Solve()
 
 	fmt.Printf("Z =\t%v\n", ap.Z)

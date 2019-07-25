@@ -11,14 +11,17 @@ const M = max * 1000
 
 func randomAP(n int) AP {
 	rand.Seed(time.Now().UTC().UnixNano())
-	ap := Create(n)
+	A := make([][]int64, n)
 	for i := 0; i < n; i++ {
+		Ai := make([]int64, n)
 		for j := 0; j < n; j++ {
 			if i == j {
-				ap.A[i][j] = rand.Int63n(max)
+				Ai[j] = rand.Int63n(max)
 			}
 		}
+		A[i] = Ai
 	}
+	ap := New(A)
 	return ap
 }
 

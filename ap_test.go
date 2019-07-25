@@ -61,7 +61,7 @@ func TestSolve(t *testing.T) {
 	}
 
 	// Optimize and check the solution.
-	ap := Create(len(A))
+	ap := New(A)
 	for i, row := range A {
 		copy(ap.A[i], row)
 	}
