@@ -1,6 +1,6 @@
 package ap
 
-// Copy makes an exact duplicate of an AP.
+// Copy duplicates an assignment problem.
 func (ap *AP) Copy() *AP {
 	A := make([][]int64, ap.Size)
 	U := make([]int64, ap.Size)
@@ -13,18 +13,16 @@ func (ap *AP) Copy() *AP {
 
 	for i := 0; i < ap.Size; i++ {
 		A[i] = make([]int64, ap.Size)
-		for j := 0; j < ap.Size; j++ {
-			A[i][j] = ap.A[i][j]
-		}
-
-		U[i] = ap.U[i]
-		V[i] = ap.V[i]
-		f[i] = ap.f[i]
-		fBar[i] = ap.fBar[i]
-		p[i] = ap.p[i]
-		c[i] = ap.c[i]
-		pi[i] = ap.pi[i]
+		copy(A[i], ap.A[i])
 	}
+
+	copy(U, ap.U)
+	copy(V, ap.V)
+	copy(f, ap.f)
+	copy(fBar, ap.fBar)
+	copy(p, ap.p)
+	copy(c, ap.c)
+	copy(pi, ap.pi)
 
 	return &AP{
 		A: A,
