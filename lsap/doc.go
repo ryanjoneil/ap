@@ -10,9 +10,9 @@
 // that each row (u ∈ U) is assigned to one column (v ∈ V) and vice versa.
 //
 //     a := lsap.New([][]int64{
-// 	       {10, 15, 12},
-// 	       {51, 75, 23},
-// 	       {11, 91, 10},
+//         {10, 15, 12},
+//         {51, 75, 23},
+//         {11, 91, 10},
 //     })
 //
 //     assignment := a.Assign() // [1 2 0]
@@ -23,7 +23,7 @@
 // assignment optimization. A copy method allows one to integrate an LASP solver
 // into a search routine for reduced cost-based domain filtering.
 //
-//     duals := a.DualPrices() 	 // {[0 14 1] [10 15 9]}
+//     duals := a.DualPrices()   // {[0 14 1] [10 15 9]}
 //     rc := a.ReducedCost(1, 1) // 46
 //
 // Given some valid primal bound p:

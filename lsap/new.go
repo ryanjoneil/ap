@@ -5,23 +5,23 @@ import "math"
 // New linear sum assignment problem (LSAP) from a square cost matrix.
 // Note: mutates the cost matrix.
 func New(A [][]int64) *LSAP {
-	size := len(A)
-	if size < 1 {
+	n := len(A)
+	if n < 1 {
 		panic("empty cost matrix")
 	}
 	for _, row := range A {
-		if len(row) != size {
+		if len(row) != n {
 			panic("cost matrix not square")
 		}
 	}
 
-	f := make([]int, size)
-	fBar := make([]int, size)
-	p := make([]int, size)
-	c := make([]int, size)
-	pi := make([]int64, size)
+	f := make([]int, n)
+	fBar := make([]int, n)
+	p := make([]int, n)
+	c := make([]int, n)
+	pi := make([]int64, n)
 
-	for i := 0; i < size; i++ {
+	for i := 0; i < n; i++ {
 		f[i] = -1
 		fBar[i] = -1
 		p[i] = -1
@@ -31,15 +31,15 @@ func New(A [][]int64) *LSAP {
 
 	a := &LSAP{
 		M:    int64(math.Pow(1000, 3)),
-		A:    A,
-		U:    make([]int64, size),
-		V:    make([]int64, size),
+		a:    A,
+		u:    make([]int64, n),
+		v:    make([]int64, n),
 		f:    f,
 		fBar: fBar,
 		p:    p,
 		c:    c,
 		pi:   pi,
-		Size: size,
+		n:    n,
 	}
 	a.initialize()
 	return a

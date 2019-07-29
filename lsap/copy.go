@@ -2,22 +2,22 @@ package lsap
 
 // Copy duplicates an assignment problem.
 func (a *LSAP) Copy() *LSAP {
-	A := make([][]int64, a.Size)
-	U := make([]int64, a.Size)
-	V := make([]int64, a.Size)
-	f := make([]int, a.Size)
-	fBar := make([]int, a.Size)
-	p := make([]int, a.Size)
-	c := make([]int, a.Size)
-	pi := make([]int64, a.Size)
+	A := make([][]int64, a.n)
+	u := make([]int64, a.n)
+	v := make([]int64, a.n)
+	f := make([]int, a.n)
+	fBar := make([]int, a.n)
+	p := make([]int, a.n)
+	c := make([]int, a.n)
+	pi := make([]int64, a.n)
 
-	for i := 0; i < a.Size; i++ {
-		A[i] = make([]int64, a.Size)
-		copy(A[i], a.A[i])
+	for i := 0; i < a.n; i++ {
+		A[i] = make([]int64, a.n)
+		copy(A[i], a.a[i])
 	}
 
-	copy(U, a.U)
-	copy(V, a.V)
+	copy(u, a.u)
+	copy(v, a.v)
 	copy(f, a.f)
 	copy(fBar, a.fBar)
 	copy(p, a.p)
@@ -27,10 +27,10 @@ func (a *LSAP) Copy() *LSAP {
 	return &LSAP{
 		M: a.M,
 
-		A: A,
-		U: U,
-		V: V,
-		Z: a.Z,
+		a: A,
+		u: u,
+		v: v,
+		z: a.z,
 
 		f:    f,
 		fBar: fBar,
@@ -38,6 +38,6 @@ func (a *LSAP) Copy() *LSAP {
 		c:    c,
 		pi:   pi,
 
-		Size: a.Size,
+		n: a.n,
 	}
 }

@@ -4,7 +4,7 @@ import "math"
 
 // solve updates A, U, V, and Z to the optimal LSAP solution.
 func (a *LSAP) solve() {
-	for i := 0; i < a.Size; i++ {
+	for i := 0; i < a.n; i++ {
 		if a.f[i] < 0 {
 			j := a.path(i)
 			if j >= 0 {
@@ -13,9 +13,9 @@ func (a *LSAP) solve() {
 		}
 	}
 
-	a.Z = 0
-	for i := 0; i < a.Size; i++ {
-		a.Z += a.U[i] + a.V[i]
+	a.z = 0
+	for i := 0; i < a.n; i++ {
+		a.z += a.u[i] + a.v[i]
 	}
 }
 
@@ -23,19 +23,19 @@ func (a *LSAP) path(i int) int {
 	lr := []int{i}       // Vector of labelled rows
 	uc := map[int]bool{} // Set of unlabelled columns
 
-	for j := 0; j < a.Size; j++ {
+	for j := 0; j < a.n; j++ {
 		uc[j] = true
 		a.pi[j] = math.MaxInt64
 	}
 
 	for {
 		r := lr[len(lr)-1]
-		if r >= a.Size {
+		if r >= a.n {
 			break
 		}
 
 		for j := range uc {
-			val := a.A[r][j] - a.U[r] - a.V[j]
+			val := a.a[r][j] - a.u[r] - a.v[j]
 			if val < a.pi[j] {
 				a.pi[j] = val
 				a.c[j] = r
@@ -62,12 +62,12 @@ func (a *LSAP) path(i int) int {
 			}
 
 			for _, h := range lr {
-				a.U[h] += d
+				a.u[h] += d
 			}
 
-			for j := 0; j < a.Size; j++ {
+			for j := 0; j < a.n; j++ {
 				if a.pi[j] == 0 {
-					a.V[j] -= d
+					a.v[j] -= d
 				} else {
 					a.pi[j] -= d
 				}
