@@ -1,17 +1,20 @@
-package ap
+package lsap
 
-// New assignment problem from a square cost matrix.
-func New(A [][]int64) AP {
-	if len(A) < 1 {
+import "math"
+
+// New linear sum assignment problem (LSAP) from a square cost matrix.
+// Note: mutates the cost matrix.
+func New(A [][]int64) *LSAP {
+	size := len(A)
+	if size < 1 {
 		panic("empty cost matrix")
 	}
 	for _, row := range A {
-		if len(row) != len(A) {
+		if len(row) != size {
 			panic("cost matrix not square")
 		}
 	}
 
-	size := len(A)
 	f := make([]int, size)
 	fBar := make([]int, size)
 	p := make([]int, size)
@@ -26,7 +29,8 @@ func New(A [][]int64) AP {
 		pi[i] = -1
 	}
 
-	return AP{
+	a := &LSAP{
+		M:    int64(math.Pow(1000, 3)),
 		A:    A,
 		U:    make([]int64, size),
 		V:    make([]int64, size),
@@ -37,4 +41,6 @@ func New(A [][]int64) AP {
 		pi:   pi,
 		Size: size,
 	}
+	a.initialize()
+	return a
 }

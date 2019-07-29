@@ -1,48 +1,47 @@
-package ap
+package lsap_test
 
 import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ryanjoneil/ap/lsap"
 )
 
-const max = 100000
-const M = max * 1000
-
-func randomAP(n int) AP {
+func randomLSAP(n int) *lsap.LSAP {
 	rand.Seed(time.Now().UTC().UnixNano())
 	A := make([][]int64, n)
 	for i := 0; i < n; i++ {
 		Ai := make([]int64, n)
 		for j := 0; j < n; j++ {
 			if i == j {
-				Ai[j] = rand.Int63n(max)
+				Ai[j] = rand.Int63n(100000)
 			}
 		}
 		A[i] = Ai
 	}
-	ap := New(A)
+	ap := lsap.New(A)
 	return ap
 }
 
 func benchSolv(b *testing.B, size int, removes int) {
 	for n := 0; n < b.N; n++ {
-		ap := randomAP(size)
-		ap.Solve()
+		ap := randomLSAP(size)
+		assign := ap.Assign()
 
 		// Incrementally remove assignments and re-optimize.
 		for i := 0; i < removes; i++ {
-			row := rand.Intn(size)
-			col := ap.Col(row)
-			ap.Remove(row, col, M)
-			ap.Solve()
+			u := rand.Intn(size)
+			v := assign[u]
+			ap.Remove(u, v)
+			assign = ap.Assign()
 		}
 	}
 }
 
 func benchCopy(b *testing.B, size int, copies int) {
 	for n := 0; n < b.N; n++ {
-		ap := randomAP(size)
+		ap := randomLSAP(size)
 		for i := 0; i < copies; i++ {
 			ap.Copy()
 		}
