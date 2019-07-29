@@ -1,99 +1,84 @@
-# ap: Incremental Primal-Dual Assignment Problem Solver
+# ap
 
-This code provides a Go implementation of an incremental primal-dual assignment problem solver. It is a port of the original Fortran for the dense AP discussed in the following paper.
+Assignment Problems
 
-```
-Giorgio Carpaneto, Silvano Martello, and Paolo Toth.
-"Algorithms and codes for the assignment problem."
-Annals of Operations Research 13, no. 1 (1988): 191-223.
-```
+[![Build Status](https://semaphoreci.com/api/v1/ryanjoneil/ap/branches/master/badge.svg)](https://semaphoreci.com/ryanjoneil/ap)
 
-This code can efficiently optimize any model in the form of an Assignment Problem.
+This package provides interfaces and data structures common to formulating and solving [assignment problems](https://en.wikipedia.org/wiki/Assignment_problem), as well as production-ready codes for solving particular variants. More details about these can be found in:
 
-```
-min   sum {i,j} c_ij * x_ij
-s.t.  sum {i} x_ij = 1       for all j
-      sum {j} x_ij = 1       for all i
-      x_ij in {0,1}          for all i, j
+```text
+Rainer Burkard, Mauro Dell'Amico, and Silvano Martello.
+"Assignment Problems - Revised Reprint."
+Society for Industrial and Applied Mathematics (2012).
 ```
 
-## What is this for?
+At this time,`ap` only provides an incremental code to solve the Linear Sum Assignment Problem. Additional forms are planned for future milestones.
 
-While there are a number of codes available for solving APs directly, and indeed a Linear Optimization solver can also make quick work of them, most implementations are not intended for _incremental_ solution. Incremental solving of assignment problems is important when an AP forms a relaxation of some other model, such as a Traveling Salesman Problem, and variable filtering is achieved through reduced cost-based domain filtering.
+LSAPs take the following form:
 
-In such scenarios, an initial relaxation of a more complex model into an AP is solved in `O(n^3)` time, arcs are typically removed from the AP solution in the search tree, and successive solutions that do not include those arcs are computed in `O(n^2)` time. The efficiency gained by incremental solution makes the AP relaxation effective in furthering domain propagation. See the following paper for more details.
+```text
+min   ∑ {i,j} c_ij * x_ij
+s.t.  ∑ {i} x_ij = 1        ∀ j
+      ∑ {j} x_ij = 1        ∀ i
+      x_ij ∈ {0,1}          ∀ i,j
+```
+
+## Quick Start: CLI
+
+To solve LSAPs from the command line, first install the `lsap` binary using Go.
+
+```bash
+go install github.com/ryanjoneil/ap/cmd/lsap
+```
+
+`lsap` reads JSON input data in the form of a square cost matrix from standard input and writes an optimal permutation and cost to standard output.
 
 ```
-Filippo Focacci, Andrea Lodi, and Michela Milano.
-"A hybrid exact algorithm for the TSPTW."
-INFORMS Journal on Computing 14, no. 4 (2002): 403-417.
+cat <<EOF | lsap | jq
+[
+    [  90,  76,  75,  70 ],
+    [  35,  85,  55,  65 ],
+    [ 125,  95,  90, 105 ],
+    [  45, 110,  95, 115 ]
+]
+EOF
 ```
 
-## How do I use it?
+```json
+{
+  "assignment": [
+    3,
+    2,
+    1,
+    0
+  ],
+  "cost": 265
+}
+```
 
-An `AP` instance has the following methods and attributes.
+## `lsap` Package
 
-* `Z`: current objective value
-* `A`: arc objective values
-* `U`: dual prices for rows
-* `V`: dual prices for columns
-* `Solve()`: optimizes the current AP
-* `Remove(row, col, obj}`: removes an arc from the current solution, sets its objective value
-* `X(row, col)`: true if the cell is in the current solution, false otherwise
-* `Col(row)`: the column assigned to a row, -1 if unassigned
-* `Row(col)`: the row assigned to a column, -1 if unassigned
-* `RC(row, col})`: the current reduced cost for a cell
-* `Size`: size of the assignment problem
+In order to embed an LSAP solver in other Go code, `go get` the library.
 
-### Basic Example
+```bash
+go get github.com/ryanjoneil/ap/lsap
+```
 
-The following example shows how to optimize a simple 5x5 AP. First initialize the solver with the correct size (5 in this case). Set the objective value of each cell in `A`. Then simply call `Solve`. This algorithm runs in `O(n^3)` time.
+LSAPs are easy to construct and solve from a cost matrix.
 
 ```go
-obj := [][]int64{
-    {25, 40, 9, 15},
-    {12, 33, 22, 31},
-    {18, 37, 18, 30},
-    {32, 11, 12, 26},
-}
+a := lsap.New([][]int64{
+    {10, 15, 12},
+    {51, 75, 23},
+    {11, 91, 10},
+})
 
-ap := ap.Create(len(obj))
-for i, row := range obj {
-    for j, val := range row {
-        ap.A[i][j] = val
-    }
-}
-ap.Solve()
+assignment := a.Assign() // [1 2 0]
+cost := a.Cost()         // 49
 ```
 
-You can now examine the solution by looking at `Z`, `U`, `V`, and by calling `RC` and `X`. See the example and test code for more details.
+Extensive examples are available in the module docs.
 
+```bash
+godoc -http=localhost:6060
 ```
-$ go run example/main.go
-```
-```
-Z = 56
-U = [0 3 9 0]
-V = [9 11 9 15]
-
-RC = 16 29  0  0
-      0 19 10 13
-      0 17  0  6
-     23  0  3 11
-
-X =   -  -  -  1
-      1  -  -  -
-      -  -  1  -
-      -  1  -  -
-```
-### Incremental Example
-
-A more complex use case removes arcs from the AP's feasible set. In this case we don't want those arcs being added back in subsequent solutions, so we set their objective values to something large (`M`) to discourage that. The first call to `solve` runs in `O(n^3)` time, while subsequent calls after an arc removal run in `O(n^2)`.
-
-```go
-var M int64 = 1000
-ap.Remove(2, 2, M)
-ap.Solve()
-```
-
-This gives a new solution, which can again be examined by looking at `Z`, `U`, `V`, and by calling `RC` and `X`.
