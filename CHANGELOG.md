@@ -2,6 +2,8 @@
 
 ## v0.2.0
 
+* #10: Add reduced cost and dual price output to lsap command
+  * `lsap` uses `-dual` and `-rc` flags for dual prices and reduced costs.
 * #6: Provide Cycle struct and method
   * Adds `ap.Cycle` and `ap.Cycles`.
   * `Permutation`, `Cycles,` and `Matrix` structs all convert to each other.
