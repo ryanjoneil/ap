@@ -27,7 +27,9 @@ func usage() {
 }
 
 func main() {
+	cycles := flag.Bool("cycles", false, "output cyclic assignment form")
 	dual := flag.Bool("dual", false, "output dual prices")
+	matrix := flag.Bool("matrix", false, "output matrix assignment form")
 	rc := flag.Bool("rc", false, "output reduced cost matrix")
 	flag.Usage = usage
 	flag.Parse()
@@ -44,8 +46,16 @@ func main() {
 		"cost":        a.Cost(),
 	}
 
+	if *cycles {
+		out["cycles"] = p.Cycles()
+	}
+
 	if *dual {
 		out["dual"] = a.DualPrices()
+	}
+
+	if *matrix {
+		out["matrix"] = p.Matrix()
 	}
 
 	if *rc {

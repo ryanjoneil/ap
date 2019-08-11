@@ -45,7 +45,7 @@ func (c Cycles) Inverse() Cycles {
 func (c Cycles) Matrix() Matrix {
 	m := make(Matrix, c.len())
 	for u := range m {
-		m[u] = make([]bool, len(m))
+		m[u] = make([]int8, len(m))
 	}
 
 	for _, cycle := range c {
@@ -54,7 +54,7 @@ func (c Cycles) Matrix() Matrix {
 			if i < len(cycle)-1 {
 				v = cycle[i+1]
 			}
-			m[u][v] = true
+			m[u][v] = 1
 		}
 	}
 

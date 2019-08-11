@@ -49,8 +49,8 @@ func (p Permutation) Inverse() Permutation {
 func (p Permutation) Matrix() Matrix {
 	m := make(Matrix, len(p))
 	for u, v := range p {
-		m[u] = make([]bool, len(p))
-		m[u][v] = true
+		m[u] = make([]int8, len(p))
+		m[u][v] = 1
 	}
 	return m
 }
