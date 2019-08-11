@@ -3,8 +3,8 @@ package ap
 // Int64DualPrices are dual prices for the assignment constraints corresponding
 // to the U and V sets, respectively.
 type Int64DualPrices struct {
-	U []int64
-	V []int64
+	U []int64 `json:"u"`
+	V []int64 `json:"v"`
 }
 
 // An Int64DualPricer provides dual prices on the assignment constraints

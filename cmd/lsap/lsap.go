@@ -9,22 +9,27 @@ import (
 	"github.com/ryanjoneil/ap/lsap"
 )
 
+func usage() {
+	out := flag.CommandLine.Output()
+	fmt.Fprintf(out, "%s solves linear sum assignment problems, given a square cost matrix\n", os.Args[0])
+	fmt.Fprintf(out, "Usage:\n")
+	fmt.Fprintf(out, "\t%s < input.json -dual -rc > output.json\n", os.Args[0])
+	fmt.Fprintf(out, "\tcat <<EOF | %s | jq\n", os.Args[0])
+	fmt.Fprintf(out, "\t[\n")
+	fmt.Fprintf(out, "\t\t[  90,  76,  75,  70 ],\n")
+	fmt.Fprintf(out, "\t\t[  35,  85,  55,  65 ],\n")
+	fmt.Fprintf(out, "\t\t[ 125,  95,  90, 105 ],\n")
+	fmt.Fprintf(out, "\t\t[  45, 110,  95, 115 ]\n")
+	fmt.Fprintf(out, "\t]\n")
+	fmt.Fprintf(out, "\tEOF\n")
+	fmt.Fprintf(out, "Flags:\n")
+	flag.PrintDefaults()
+}
+
 func main() {
-	flag.Usage = func() {
-		out := flag.CommandLine.Output()
-		fmt.Fprintf(out, "%s solves linear sum assignment problems, given a square cost matrix\n", os.Args[0])
-		fmt.Fprintf(out, "Usage:\n")
-		fmt.Fprintf(out, "\t%s < input.json > output.json\n", os.Args[0])
-		fmt.Fprintf(out, "\tcat <<EOF | %s | jq\n", os.Args[0])
-		fmt.Fprintf(out, "\t[\n")
-		fmt.Fprintf(out, "\t\t[  90,  76,  75,  70 ],\n")
-		fmt.Fprintf(out, "\t\t[  35,  85,  55,  65 ],\n")
-		fmt.Fprintf(out, "\t\t[ 125,  95,  90, 105 ],\n")
-		fmt.Fprintf(out, "\t\t[  45, 110,  95, 115 ]\n")
-		fmt.Fprintf(out, "\t]\n")
-		fmt.Fprintf(out, "\tEOF\n")
-		flag.PrintDefaults()
-	}
+	dual := flag.Bool("dual", false, "output dual prices")
+	rc := flag.Bool("rc", false, "output reduced cost matrix")
+	flag.Usage = usage
 	flag.Parse()
 
 	var c [][]int64
@@ -33,9 +38,26 @@ func main() {
 	}
 
 	a := lsap.New(c)
+	p := a.Assign()
 	out := map[string]interface{}{
-		"assignment": a.Assign(),
-		"cost":       a.Cost(),
+		"permutation": p,
+		"cost":        a.Cost(),
+	}
+
+	if *dual {
+		out["dual"] = a.DualPrices()
+	}
+
+	if *rc {
+		rcMatrix := make([][]int64, len(p))
+		for u := range p {
+			rcRow := make([]int64, len(p))
+			for v := range p {
+				rcRow[v] = a.ReducedCost(u, v)
+			}
+			rcMatrix[u] = rcRow
+		}
+		out["rc"] = rcMatrix
 	}
 
 	if err := json.NewEncoder(os.Stdout).Encode(out); err != nil {
