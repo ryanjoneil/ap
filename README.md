@@ -1,4 +1,4 @@
-# `ap`: assignment problems
+# `ap`: assignment problem solvers for go
 
 [![Build Status](https://semaphoreci.com/api/v1/ryanjoneil/ap/branches/master/badge.svg)](https://semaphoreci.com/ryanjoneil/ap)
 
@@ -56,7 +56,13 @@ EOF
 
 ## Quick Start: Packages
 
-### `ap`: Assignment Problem
+Extensive examples are available in the module docs.
+
+```bash
+godoc -http=localhost:6060
+```
+
+### `ap`: assignment representations & interfaces
 
 Package `ap` provides solution representations and interfaces for working with assignment problems and solvers.
 
@@ -80,7 +86,7 @@ p.Inverse() // {1, 0, 2, 5, 6, 4, 3}
 p.Matrix()  // // p[u] == v -> m[u][v] == true
 ```
 
-### `lsap`: Linear Sum Assignment Problems
+### `lsap`: linear sum assignment problem solver
 
 Package `ap/lsap` provides a efficient, iterative implementation of a primal-dual linear sum assignment problem solver.
 
@@ -97,12 +103,6 @@ a := lsap.New([][]int64{
     {11, 91, 10},
 })
 
-assignment := a.Assign() // [1 2 0]
-cost := a.Cost()         // 49
-```
-
-Extensive examples are available in the module docs.
-
-```bash
-godoc -http=localhost:6060
+permutation := a.Assign() // [1 2 0]
+cost := a.Cost()          // 49
 ```
