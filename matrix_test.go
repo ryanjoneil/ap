@@ -7,11 +7,17 @@ import (
 )
 
 func ExampleMatrix() {
-	a := ap.Assignment{1, 3, 2, 0}
-	fmt.Println(ap.ToMatrix(a))
+	m := ap.Matrix{
+		{false, true, false},
+		{true, false, false},
+		{false, false, true},
+	}
+	fmt.Println(m)
+	fmt.Println(m.Permutation())
+
 	// Output:
-	// - X - -
-	// - - - X
-	// - - X -
-	// X - - -
+	// - X -
+	// X - -
+	// - - X
+	// [1 0 2]
 }

@@ -81,7 +81,7 @@ func TestLSAP(t *testing.T) {
 	})
 }
 
-func checkAssigner(t *testing.T, a ap.Assigner, want ap.Assignment) {
+func checkAssigner(t *testing.T, a ap.Assigner, want ap.Permutation) {
 	if v := a.Assign(); !reflect.DeepEqual(want, v) {
 		t.Errorf("want %v; got %v", want, v)
 	}

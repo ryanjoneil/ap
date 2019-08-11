@@ -3,17 +3,21 @@ package ap
 import "strings"
 
 // Matrix representation of an assignment. If u is assigned to v, then M[u][v]
-// is true. Each row and column has exactly one true element.
+// is true. Each row and each column has exactly one true element.
 type Matrix [][]bool
 
-// ToMatrix converts an assignment into a square matrix.
-func ToMatrix(a Assignment) Matrix {
-	m := make(Matrix, len(a))
-	for u, v := range a {
-		m[u] = make([]bool, len(a))
-		m[u][v] = true
+// Permutation converts a matrix assignment representation into a permutation.
+func (m Matrix) Permutation() Permutation {
+	p := make(Permutation, len(m))
+	for u, mu := range m {
+		for v, assigned := range mu {
+			if assigned {
+				p[u] = v
+				break
+			}
+		}
 	}
-	return m
+	return p
 }
 
 func (m Matrix) String() string {
