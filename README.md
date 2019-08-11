@@ -126,8 +126,12 @@ Usage:
         ]
         EOF
 Flags:
+        -cycles
+                output cyclic assignment form
         -dual
                 output dual prices
+        -matrix
+                output matrix assignment form
         -rc
                 output reduced cost matrix
 ```

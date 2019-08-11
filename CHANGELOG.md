@@ -2,6 +2,9 @@
 
 ## v0.2.0
 
+* #12: Add cycle and matrix output to lsap command
+  * `lsap` provides `-cycles` and `-matrix` flags for assignment forms.
+  * `ap.Matrix` is now a `[][]int8` instead of `[][]bool`.
 * #10: Add reduced cost and dual price output to lsap command
   * `lsap` uses `-dual` and `-rc` flags for dual prices and reduced costs.
 * #6: Provide Cycle struct and method
