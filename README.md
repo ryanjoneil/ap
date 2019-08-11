@@ -16,9 +16,9 @@ LSAPs take the following form:
 
 ```text
 min   ∑_i,j c_ij * x_ij
-s.t.  ∑_i   x_ij = 1        ∀ j
-      ∑_j   x_ij = 1        ∀ i
-            x_ij ∈ {0,1}    ∀ i,j
+s.t.  ∑_i   x_ij = 1      ∀ j
+      ∑_j   x_ij = 1      ∀ i
+            x_ij ∈ {0,1}  ∀ i,j
 ```
 
 ## Quick Start: CLI
