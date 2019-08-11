@@ -6,6 +6,16 @@ import "strings"
 // is true. Each row and each column has exactly one true element.
 type Matrix [][]bool
 
+// Cycles converts a permutation matrix to a cyclic representation.
+func (m Matrix) Cycles() Cycles {
+	return m.Permutation().Cycles()
+}
+
+// Inverse inverts a permutation matrix, changing its direction.
+func (m Matrix) Inverse() Matrix {
+	return m.Permutation().Inverse().Matrix()
+}
+
 // Permutation converts a matrix assignment representation into a permutation.
 func (m Matrix) Permutation() Permutation {
 	p := make(Permutation, len(m))
