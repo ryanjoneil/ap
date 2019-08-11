@@ -1,6 +1,4 @@
-# ap
-
-Assignment Problems
+# `ap`: assignment problems
 
 [![Build Status](https://semaphoreci.com/api/v1/ryanjoneil/ap/branches/master/badge.svg)](https://semaphoreci.com/ryanjoneil/ap)
 
@@ -12,7 +10,7 @@ Rainer Burkard, Mauro Dell'Amico, and Silvano Martello.
 Society for Industrial and Applied Mathematics (2012).
 ```
 
-At this time,`ap` only provides an incremental code to solve the Linear Sum Assignment Problem. Additional forms are planned for future milestones.
+At this time, `ap` only provides an incremental code to solve the Linear Sum Assignment Problem. Additional forms are planned for future milestones.
 
 LSAPs take the following form:
 
@@ -33,7 +31,7 @@ go install github.com/ryanjoneil/ap/cmd/lsap
 
 `lsap` reads JSON input data in the form of a square cost matrix from standard input and writes an optimal permutation and cost to standard output.
 
-```
+```bash
 cat <<EOF | lsap | jq
 [
     [  90,  76,  75,  70 ],
