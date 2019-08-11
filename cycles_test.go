@@ -6,17 +6,16 @@ import (
 	"github.com/ryanjoneil/ap"
 )
 
-func ExamplePermutation() {
-	p := ap.Permutation{1, 0, 2, 6, 5, 3, 4}
-	fmt.Println(p)
-	fmt.Println(p.Cycles())
-	fmt.Println(p.Inverse())
-	fmt.Println(p.Matrix())
+func ExampleCycles() {
+	c := ap.Cycles{{0, 1}, {2}, {3, 6, 4, 5}}
+	fmt.Println(c)
+	fmt.Println(c.Inverse())
+	fmt.Println(c.Matrix())
+	fmt.Println(c.Permutation())
 
 	// Output:
-	// [1 0 2 6 5 3 4]
 	// [[0 1] [2] [3 6 4 5]]
-	// [1 0 2 5 6 4 3]
+	// [[0 1] [2] [3 5 4 6]]
 	// - X - - - - -
 	// X - - - - - -
 	// - - X - - - -
@@ -24,4 +23,5 @@ func ExamplePermutation() {
 	// - - - - - X -
 	// - - - X - - -
 	// - - - - X - -
+	// [1 0 2 6 5 3 4]
 }

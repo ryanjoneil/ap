@@ -1,4 +1,4 @@
-# `ap`: assignment problems
+# `ap`: assignment problem solvers for go
 
 [![Build Status](https://semaphoreci.com/api/v1/ryanjoneil/ap/branches/master/badge.svg)](https://semaphoreci.com/ryanjoneil/ap)
 
@@ -54,9 +54,41 @@ EOF
 }
 ```
 
-## `lsap` Package
+## Quick Start: Packages
 
-In order to embed an LSAP solver in other Go code, `go get` the library.
+Extensive examples are available in the module docs.
+
+```bash
+godoc -http=localhost:6060
+```
+
+### `ap`: assignment representations & interfaces
+
+Package `ap` provides solution representations and interfaces for working with assignment problems and solvers.
+
+```bash
+go get github.com/ryanjoneil/ap
+```
+
+The default representation of an assignment produced by an `Assigner` is a `Permutation`.
+
+```go
+a := SomeAssigner{} // implements ap.Assign
+p := a.Assign()     // p is an ap.Permutation
+```
+
+Permutations can be converted to cyclic and matrix representations of assignments, and vice versa. All representations provide `Inverse` methods reverse the direction of assignment.
+
+```go
+p := ap.Permutation{1, 0, 2, 6, 5, 3, 4}
+p.Cycles()  // {{0, 1}, {2}, {3, 6, 4, 5}}
+p.Inverse() // {1, 0, 2, 5, 6, 4, 3}
+p.Matrix()  // // p[u] == v -> m[u][v] == true
+```
+
+### `lsap`: linear sum assignment problem solver
+
+Package `ap/lsap` provides a efficient, iterative implementation of a primal-dual linear sum assignment problem solver.
 
 ```bash
 go get github.com/ryanjoneil/ap/lsap
@@ -71,12 +103,6 @@ a := lsap.New([][]int64{
     {11, 91, 10},
 })
 
-assignment := a.Assign() // [1 2 0]
-cost := a.Cost()         // 49
-```
-
-Extensive examples are available in the module docs.
-
-```bash
-godoc -http=localhost:6060
+permutation := a.Assign() // [1 2 0]
+cost := a.Cost()          // 49
 ```
