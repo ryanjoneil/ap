@@ -83,10 +83,10 @@ Permutations can be converted to cyclic and matrix representations of assignment
 p := ap.Permutation{1, 0, 2, 6, 5, 3, 4}
 p.Cycles()  // {{0, 1}, {2}, {3, 6, 4, 5}}
 p.Inverse() // {1, 0, 2, 5, 6, 4, 3}
-p.Matrix()  // // p[u] == v -> m[u][v] == true
+p.Matrix()  // p[u] == v -> m[u][v] == true
 ```
 
-### `lsap`: linear sum assignment problem solver
+### `ap/lsap`: linear sum assignment problem solver
 
 Package `ap/lsap` provides a efficient, iterative implementation of a primal-dual linear sum assignment problem solver.
 
