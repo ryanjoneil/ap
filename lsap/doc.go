@@ -20,7 +20,7 @@
 //
 // The LSAP struct conforms to ap.Int64DualPricer and ap.Int64ReducedCoster
 // interfaces. Dual bounds and reduced costs are calculated as part of the
-// assignment optimization. A copy method allows one to integrate an LASP solver
+// assignment optimization. A copy method allows one to integrate an LSAP solver
 // into a search routine for reduced cost-based domain filtering.
 //
 //     duals := a.DualPrices()   // {[0 14 1] [10 15 9]}
