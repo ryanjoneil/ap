@@ -106,3 +106,28 @@ a := lsap.New([][]int64{
 permutation := a.Assign() // [1 2 0]
 cost := a.Cost()          // 49
 ```
+
+`lsap` provides command line flags for outputting dual prices and reduced costs.
+
+```bash
+lsap -h
+```
+
+```text
+lsap solves linear sum assignment problems, given a square cost matrix
+Usage:
+        lsap < input.json -dual -rc > output.json
+        cat <<EOF | lsap | jq
+        [
+                [  90,  76,  75,  70 ],
+                [  35,  85,  55,  65 ],
+                [ 125,  95,  90, 105 ],
+                [  45, 110,  95, 115 ]
+        ]
+        EOF
+Flags:
+        -dual
+                output dual prices
+        -rc
+                output reduced cost matrix
+```
