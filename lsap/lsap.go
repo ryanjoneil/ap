@@ -20,11 +20,11 @@ type LSAP struct {
 }
 
 // Assign returns an optimal assignment for an LSAP.
-func (a *LSAP) Assign() ap.Assignment {
+func (a *LSAP) Assign() ap.Permutation {
 	a.solve()
-	assign := make(ap.Assignment, a.n)
-	copy(assign, a.f)
-	return assign
+	p := make(ap.Permutation, a.n)
+	copy(p, a.f)
+	return p
 }
 
 // Cost returns the objective value of an LSAP. If Assign is called prior to

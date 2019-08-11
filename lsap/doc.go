@@ -1,9 +1,9 @@
 // Package lsap solves linear sum assignment problems. These take the form:
 //
-//     min   ∑ {i,j} c_ij * x_ij
-//     s.t.  ∑ {i} x_ij = 1        ∀ j
-//           ∑ {j} x_ij = 1        ∀ i
-//           x_ij ∈ {0,1}          ∀ i,j
+//     min   ∑_i,j c_ij * x_ij
+//     s.t.  ∑_i   x_ij = 1      ∀ j
+//           ∑_j   x_ij = 1      ∀ i
+//                 x_ij ∈ {0,1}  ∀ i,j
 //
 // x is an n-by-n matrix of binary variables representing edges in a bipartite
 // graph, while c is the cost matrix for those edges. The constraints specify
@@ -15,8 +15,8 @@
 //         {11, 91, 10},
 //     })
 //
-//     assignment := a.Assign() // [1 2 0]
-//     cost := a.Cost()         // 49
+//     permutation := p.Assign() // [1 2 0]
+//     cost := a.Cost()          // 49
 //
 // The LSAP struct conforms to ap.Int64DualPricer and ap.Int64ReducedCoster
 // interfaces. Dual bounds and reduced costs are calculated as part of the
@@ -37,8 +37,8 @@
 // remove edges from the resulting assignment and re-solve in O(n^2) time.
 //
 //     a.Remove(0, 1)
-//     assignment = a.Assign() // [0 1 2]
-//     cost = a.Cost()         // 95
+//     permutation = a.Assign() // [0 1 2]
+//     cost = a.Cost()          // 95
 //
 // It is a port of the original Fortran code for the dense AP discussed in:
 //

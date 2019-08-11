@@ -17,10 +17,10 @@ At this time,`ap` only provides an incremental code to solve the Linear Sum Assi
 LSAPs take the following form:
 
 ```text
-min   ∑ {i,j} c_ij * x_ij
-s.t.  ∑ {i} x_ij = 1        ∀ j
-      ∑ {j} x_ij = 1        ∀ i
-      x_ij ∈ {0,1}          ∀ i,j
+min   ∑_i,j c_ij * x_ij
+s.t.  ∑_i   x_ij = 1        ∀ j
+      ∑_j   x_ij = 1        ∀ i
+            x_ij ∈ {0,1}    ∀ i,j
 ```
 
 ## Quick Start: CLI
