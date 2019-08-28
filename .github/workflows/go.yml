@@ -28,8 +28,8 @@ jobs:
     - name: Lint
       run: |
         test -z $(go fmt ./...)
-        golint -set_exit_status
-        staticcheck ./...
+        $(go env GOPATH)/bin/golint -set_exit_status
+        $(go env GOPATH)/bin/staticcheck ./...
 
     - name: Build
       run: go build -race -v ./...
