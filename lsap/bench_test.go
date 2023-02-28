@@ -9,13 +9,13 @@ import (
 )
 
 func randomLSAP(n int) *lsap.LSAP {
-	rand.Seed(time.Now().UTC().UnixNano())
+	rng := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	A := make([][]int64, n)
 	for i := 0; i < n; i++ {
 		Ai := make([]int64, n)
 		for j := 0; j < n; j++ {
 			if i == j {
-				Ai[j] = rand.Int63n(100000)
+				Ai[j] = rng.Int63n(100000)
 			}
 		}
 		A[i] = Ai
