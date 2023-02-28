@@ -9,7 +9,7 @@ import (
 	"github.com/ryanjoneil/ap/lsap"
 )
 
-func ExampleLSAP() {
+func ExampleAssigner() {
 	a := lsap.New([][]int64{
 		{10, 15, 12},
 		{51, 75, 23},
@@ -36,7 +36,7 @@ func ExampleLSAP() {
 	// 95
 }
 
-func TestLSAP(t *testing.T) {
+func TestAssigner(t *testing.T) {
 	a := lsap.New([][]int64{
 		{25, 40, 9, 15},
 		{12, 33, 22, 31},

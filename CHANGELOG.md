@@ -3,9 +3,9 @@
 ## v0.3.0
 
 * #15: Add `ap.Arc` type for convenient matrix creation.
-* Misc:
-  * Update Go to v1.20.
-  * Update linting and GitHub Actions.
+* LSAP solver auto-computes big-M.
+* Update Go to v1.20.
+* Update linting and GitHub Actions.
 
 ## v0.2.0
 
