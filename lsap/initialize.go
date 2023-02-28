@@ -1,11 +1,11 @@
 package lsap
 
-func (a *LSAP) initialize() {
+func (a *lsap) initialize() {
 	a.initializePhase1()
 	a.initializePhase2()
 }
 
-func (a *LSAP) initializePhase1() {
+func (a *lsap) initializePhase1() {
 	for j := 0; j < a.n; j++ {
 		r := a.minRow(j)
 		a.v[j] = a.a[r][j]
@@ -18,7 +18,7 @@ func (a *LSAP) initializePhase1() {
 	}
 }
 
-func (a *LSAP) initializePhase2() {
+func (a *lsap) initializePhase2() {
 	for i := 0; i < a.n; i++ {
 		if a.f[i] >= 0 {
 			continue
@@ -65,7 +65,7 @@ func (a *LSAP) initializePhase2() {
 	}
 }
 
-func (a *LSAP) minRow(j int) int {
+func (a *lsap) minRow(j int) int {
 	first := true
 	var minVal int64
 	minRow := 0
@@ -81,7 +81,7 @@ func (a *LSAP) minRow(j int) int {
 	return minRow
 }
 
-func (a *LSAP) minCol(i int) int {
+func (a *lsap) minCol(i int) int {
 	first := true
 	var minVal int64
 	minCol := 0

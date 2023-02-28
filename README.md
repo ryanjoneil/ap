@@ -1,9 +1,8 @@
 # `ap`: assignment problem solvers for go
 
 This package provides interfaces and data structures common to formulating and
-solving [assignment problems](https://en.wikipedia.org/wiki/Assignment_problem),
-as well as production-ready codes for solving particular variants. More details
-about these can be found in:
+solving [assignment problems][ap], as well as codes for solving particular
+variants. More details about these can be found in:
 
 ```text
 Rainer Burkard, Mauro Dell'Amico, and Silvano Martello.
@@ -59,11 +58,7 @@ EOF
 
 ## Quick Start: Packages
 
-Extensive examples are available in the module docs.
-
-```bash
-godoc -http=localhost:6060
-```
+Examples are available in the [package docs][docs].
 
 ### `ap`: assignment representations & interfaces
 
@@ -143,3 +138,6 @@ Flags:
         -rc
                 output reduced cost matrix
 ```
+
+[ap]:   https://en.wikipedia.org/wiki/Assignment_problem
+[docs]: https://pkg.go.dev/github.com/ryanjoneil/ap

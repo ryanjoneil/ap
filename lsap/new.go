@@ -1,14 +1,30 @@
 package lsap
 
-import "math"
+import (
+	"math"
+
+	"github.com/ryanjoneil/ap"
+)
+
+// An Assigner for linear sum assignment problem.
+type Assigner interface {
+	ap.Assigner
+	ap.Int64Coster
+	ap.Int64DualPricer
+	ap.Int64ReducedCoster
+
+	Copy() Assigner
+	Remove(int, int)
+}
 
 // New linear sum assignment problem (LSAP) from a square cost matrix.
 // Note: mutates the cost matrix.
-func New(A [][]int64) *LSAP {
+func New(A [][]int64) Assigner {
 	n := len(A)
 	if n < 1 {
 		panic("empty cost matrix")
 	}
+
 	for _, row := range A {
 		if len(row) != n {
 			panic("cost matrix not square")
@@ -29,8 +45,8 @@ func New(A [][]int64) *LSAP {
 		pi[i] = -1
 	}
 
-	a := &LSAP{
-		M:    int64(math.Pow(1000, 3)),
+	a := &lsap{
+		M:    math.MaxInt64 / int64(n),
 		a:    A,
 		u:    make([]int64, n),
 		v:    make([]int64, n),

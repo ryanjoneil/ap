@@ -59,7 +59,6 @@ func TestLSAP(t *testing.T) {
 	})
 
 	// Remove edges, re-optimize, and check.
-	a.M = 1000
 	a.Remove(2, 2)
 	a.Remove(1, 0)
 	a.Remove(0, 3)
@@ -74,32 +73,40 @@ func TestLSAP(t *testing.T) {
 		V: []int64{9, 11, -7, 9},
 	})
 	checkInt64ReducedCoster(t, a, [][]int64{
-		{0, 13, 0, 975},
-		{969, 0, 7, 0},
-		{970, 5, 986, 0},
-		{4, 970, 0, 972},
+		{0, 13, 0, 2305843009213693926},
+		{2305843009213693920, 0, 7, 0},
+		{2305843009213693921, 5, 2305843009213693937, 0},
+		{4, 2305843009213693921, 0, 2305843009213693923},
 	})
 }
 
 func checkAssigner(t *testing.T, a ap.Assigner, want ap.Permutation) {
+	t.Helper()
+
 	if v := a.Assign(); !reflect.DeepEqual(want, v) {
 		t.Errorf("want %v; got %v", want, v)
 	}
 }
 
 func checkInt64Coster(t *testing.T, a ap.Int64Coster, want int64) {
+	t.Helper()
+
 	if v := a.Cost(); want != v {
 		t.Errorf("want %v; got %v", want, v)
 	}
 }
 
 func checkInt64DualPricer(t *testing.T, a ap.Int64DualPricer, want ap.Int64DualPrices) {
+	t.Helper()
+
 	if v := a.DualPrices(); !reflect.DeepEqual(want, v) {
 		t.Errorf("want %v; got %v", want, v)
 	}
 }
 
 func checkInt64ReducedCoster(t *testing.T, a ap.Int64ReducedCoster, want [][]int64) {
+	t.Helper()
+
 	for u, row := range want {
 		for v, rc := range row {
 			if vrc := a.ReducedCost(u, v); vrc != rc {

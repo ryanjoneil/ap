@@ -3,7 +3,7 @@ package lsap
 import "math"
 
 // solve updates A, U, V, and Z to the optimal LSAP solution.
-func (a *LSAP) solve() {
+func (a *lsap) solve() {
 	for i := 0; i < a.n; i++ {
 		if a.f[i] < 0 {
 			j := a.path(i)
@@ -19,7 +19,7 @@ func (a *LSAP) solve() {
 	}
 }
 
-func (a *LSAP) path(i int) int {
+func (a *lsap) path(i int) int {
 	lr := []int{i}       // Vector of labelled rows
 	uc := map[int]bool{} // Set of unlabelled columns
 
@@ -96,7 +96,7 @@ func (a *LSAP) path(i int) int {
 	return -1
 }
 
-func (a *LSAP) increase(i, j int) {
+func (a *lsap) increase(i, j int) {
 	for {
 		l := a.c[j]
 		a.fBar[j] = l

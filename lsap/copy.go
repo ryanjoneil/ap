@@ -1,7 +1,7 @@
 package lsap
 
 // Copy duplicates an assignment problem.
-func (a *LSAP) Copy() *LSAP {
+func (a *lsap) Copy() Assigner {
 	A := make([][]int64, a.n)
 	u := make([]int64, a.n)
 	v := make([]int64, a.n)
@@ -24,7 +24,7 @@ func (a *LSAP) Copy() *LSAP {
 	copy(c, a.c)
 	copy(pi, a.pi)
 
-	return &LSAP{
+	return &lsap{
 		M: a.M,
 
 		a: A,

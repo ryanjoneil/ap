@@ -8,7 +8,7 @@ import (
 	"github.com/ryanjoneil/ap/lsap"
 )
 
-func randomLSAP(n int) *lsap.LSAP {
+func randomLSAP(n int) lsap.Assigner {
 	rng := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	A := make([][]int64, n)
 	for i := 0; i < n; i++ {
@@ -25,6 +25,8 @@ func randomLSAP(n int) *lsap.LSAP {
 }
 
 func benchSolv(b *testing.B, size int, removes int) {
+	b.Helper()
+
 	for n := 0; n < b.N; n++ {
 		ap := randomLSAP(size)
 		assign := ap.Assign()
@@ -40,6 +42,8 @@ func benchSolv(b *testing.B, size int, removes int) {
 }
 
 func benchCopy(b *testing.B, size int, copies int) {
+	b.Helper()
+
 	for n := 0; n < b.N; n++ {
 		ap := randomLSAP(size)
 		for i := 0; i < copies; i++ {
