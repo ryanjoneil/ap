@@ -1,5 +1,12 @@
 # ap: Change Log
 
+## v0.3.0
+
+* #15: Add `ap.Arc` type for convenient matrix creation.
+* Misc:
+  * Update Go to v1.20.
+  * Update linting and GitHub Actions.
+
 ## v0.2.0
 
 * #12: Add cycle and matrix output to lsap command

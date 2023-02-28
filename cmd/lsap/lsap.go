@@ -41,7 +41,7 @@ func main() {
 
 	a := lsap.New(c)
 	p := a.Assign()
-	out := map[string]interface{}{
+	out := map[string]any{
 		"permutation": p,
 		"cost":        a.Cost(),
 	}
