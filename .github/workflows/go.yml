@@ -1,41 +1,27 @@
-name: Go
+name: go
 on: [push]
+
 jobs:
 
   build:
-    name: Build
+    name: lint, build & test
+
     runs-on: ubuntu-latest
+
     steps:
+      - name: setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.21'
 
-    - name: Set up Go 1.12
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.12
-      id: go
+      - name: checkout
+        uses: actions/checkout@v3
 
-    - name: go get golint
-      run: go get -u golang.org/x/lint/golint
+      - name: lint
+        uses: golangci/golangci-lint-action@v3
 
-    - name: go get staticcheck
-      run: go get -u honnef.co/go/tools/cmd/staticcheck
+      - name: build
+        run: go build -race -v ./...
 
-    - name: git clone
-      uses: actions/checkout@v1
-
-    - name: go fmt
-      run: test -z $(go fmt ./...)
-
-    - name: go get
-      run: go get -v -t -d ./...
-
-    - name: golint
-      run: $(go env GOPATH)/bin/golint -set_exit_status
-        
-    - name: staticcheck
-      run: $(go env GOPATH)/bin/staticcheck ./...
-
-    - name: go build
-      run: go build -race -v ./...
-
-    - name: go test
-      run: go test -cover -race ./...
+      - name: test
+        run: go test -cover -race ./...

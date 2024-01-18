@@ -1,5 +1,15 @@
 # ap: Change Log
 
+## v0.3.0
+
+* LSAP solver auto-computes big-M. 
+* LSAP solver provides `M` and `SetM` methods.
+* Update Go to v1.21.
+* Update linting and GitHub Actions.
+* Assigners operate on generic signed `int` types. 
+* Remove `Int64*` interface prefixes.
+* Improve docs and examples.
+
 ## v0.2.0
 
 * #12: Add cycle and matrix output to lsap command

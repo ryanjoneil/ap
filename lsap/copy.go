@@ -1,18 +1,18 @@
 package lsap
 
 // Copy duplicates an assignment problem.
-func (a *LSAP) Copy() *LSAP {
-	A := make([][]int64, a.n)
-	u := make([]int64, a.n)
-	v := make([]int64, a.n)
+func (a *LSAP[T]) Copy() Assigner[T] {
+	A := make([][]T, a.n)
+	u := make([]T, a.n)
+	v := make([]T, a.n)
 	f := make([]int, a.n)
 	fBar := make([]int, a.n)
 	p := make([]int, a.n)
 	c := make([]int, a.n)
-	pi := make([]int64, a.n)
+	pi := make([]T, a.n)
 
 	for i := 0; i < a.n; i++ {
-		A[i] = make([]int64, a.n)
+		A[i] = make([]T, a.n)
 		copy(A[i], a.a[i])
 	}
 
@@ -24,8 +24,8 @@ func (a *LSAP) Copy() *LSAP {
 	copy(c, a.c)
 	copy(pi, a.pi)
 
-	return &LSAP{
-		M: a.M,
+	return &LSAP[T]{
+		m: a.m,
 
 		a: A,
 		u: u,

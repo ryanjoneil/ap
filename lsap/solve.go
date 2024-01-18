@@ -1,9 +1,9 @@
 package lsap
 
-import "math"
+import "github.com/ryanjoneil/ap"
 
 // solve updates A, U, V, and Z to the optimal LSAP solution.
-func (a *LSAP) solve() {
+func (a *LSAP[T]) solve() {
 	for i := 0; i < a.n; i++ {
 		if a.f[i] < 0 {
 			j := a.path(i)
@@ -19,13 +19,13 @@ func (a *LSAP) solve() {
 	}
 }
 
-func (a *LSAP) path(i int) int {
+func (a *LSAP[T]) path(i int) int {
 	lr := []int{i}       // Vector of labelled rows
 	uc := map[int]bool{} // Set of unlabelled columns
 
 	for j := 0; j < a.n; j++ {
 		uc[j] = true
-		a.pi[j] = math.MaxInt64
+		a.pi[j] = ap.MaxOf[T]()
 	}
 
 	for {
@@ -53,7 +53,7 @@ func (a *LSAP) path(i int) int {
 		if !found {
 			// d = min { pi[j] | j in uc }
 			first := true
-			var d int64
+			var d T
 			for j := range uc {
 				if first || a.pi[j] < d {
 					first = false
@@ -96,7 +96,7 @@ func (a *LSAP) path(i int) int {
 	return -1
 }
 
-func (a *LSAP) increase(i, j int) {
+func (a *LSAP[T]) increase(i, j int) {
 	for {
 		l := a.c[j]
 		a.fBar[j] = l

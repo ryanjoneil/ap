@@ -1,11 +1,11 @@
 package lsap
 
-func (a *LSAP) initialize() {
+func (a *LSAP[T]) initialize() {
 	a.initializePhase1()
 	a.initializePhase2()
 }
 
-func (a *LSAP) initializePhase1() {
+func (a *LSAP[T]) initializePhase1() {
 	for j := 0; j < a.n; j++ {
 		r := a.minRow(j)
 		a.v[j] = a.a[r][j]
@@ -18,7 +18,7 @@ func (a *LSAP) initializePhase1() {
 	}
 }
 
-func (a *LSAP) initializePhase2() {
+func (a *LSAP[T]) initializePhase2() {
 	for i := 0; i < a.n; i++ {
 		if a.f[i] >= 0 {
 			continue
@@ -38,10 +38,15 @@ func (a *LSAP) initializePhase2() {
 				k := a.p[r]
 
 				for !assign && k < a.n {
-					if r >= 0 && k >= 0 && a.fBar[k] < 0 && a.a[r][k]-a.u[r]-a.v[k] == 0 {
+					if r >= 0 &&
+						k >= 0 &&
+						a.fBar[k] < 0 &&
+						a.a[r][k]-a.u[r]-a.v[k] == 0 {
+
 						assign = true
 						a.f[r] = k
 						a.fBar[k] = r
+
 					} else {
 						k++
 					}
@@ -65,9 +70,9 @@ func (a *LSAP) initializePhase2() {
 	}
 }
 
-func (a *LSAP) minRow(j int) int {
+func (a *LSAP[T]) minRow(j int) int {
 	first := true
-	var minVal int64
+	var minVal T
 	minRow := 0
 
 	for i := 0; i < a.n; i++ {
@@ -81,13 +86,16 @@ func (a *LSAP) minRow(j int) int {
 	return minRow
 }
 
-func (a *LSAP) minCol(i int) int {
+func (a *LSAP[T]) minCol(i int) int {
 	first := true
-	var minVal int64
+	var minVal T
 	minCol := 0
 
 	for j := 0; j < a.n; j++ {
-		if first || a.a[i][j]-a.v[j] < minVal || a.a[i][j] == minVal && a.fBar[j] < 0 {
+		if first ||
+			a.a[i][j]-a.v[j] < minVal ||
+			a.a[i][j] == minVal && a.fBar[j] < 0 {
+
 			first = false
 			minVal = a.a[i][j] - a.v[j]
 			minCol = j

@@ -8,25 +8,33 @@ import (
 	"github.com/ryanjoneil/ap/lsap"
 )
 
-func randomLSAP(n int) *lsap.LSAP {
-	rand.Seed(time.Now().UTC().UnixNano())
-	A := make([][]int64, n)
+func randomMatrix(n int) [][]int {
+	rng := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	A := make([][]int, n)
 	for i := 0; i < n; i++ {
-		Ai := make([]int64, n)
+		Ai := make([]int, n)
 		for j := 0; j < n; j++ {
 			if i == j {
-				Ai[j] = rand.Int63n(100000)
+				Ai[j] = rng.Intn(100000)
 			}
 		}
 		A[i] = Ai
 	}
-	ap := lsap.New(A)
-	return ap
+	return A
 }
 
-func benchSolv(b *testing.B, size int, removes int) {
+func benchSolve(b *testing.B, size int, removes int) {
+	b.Helper()
+
+	matrices := [][][]int{}
 	for n := 0; n < b.N; n++ {
-		ap := randomLSAP(size)
+		matrices = append(matrices, randomMatrix(size))
+	}
+
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		ap := lsap.New(matrices[n])
 		assign := ap.Assign()
 
 		// Incrementally remove assignments and re-optimize.
@@ -40,23 +48,29 @@ func benchSolv(b *testing.B, size int, removes int) {
 }
 
 func benchCopy(b *testing.B, size int, copies int) {
+	b.Helper()
+
+	matrices := [][][]int{}
 	for n := 0; n < b.N; n++ {
-		ap := randomLSAP(size)
+		matrices = append(matrices, randomMatrix(size))
+	}
+
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		ap := lsap.New(matrices[n])
 		for i := 0; i < copies; i++ {
 			ap.Copy()
 		}
 	}
 }
 
-func BenchmarkSolve10(b *testing.B)  { benchSolv(b, 10, 0) }
-func BenchmarkSolve100(b *testing.B) { benchSolv(b, 100, 0) }
-func BenchmarkSolve1K(b *testing.B)  { benchSolv(b, 1000, 0) }
-func BenchmarkSolve10K(b *testing.B) { benchSolv(b, 10000, 0) }
+func BenchmarkSolve100(b *testing.B) { benchSolve(b, 100, 0) }
+func BenchmarkSolve1K(b *testing.B)  { benchSolve(b, 1000, 0) }
+func BenchmarkSolve10K(b *testing.B) { benchSolve(b, 10000, 0) }
 
-func BenchmarkIncremental10x1(b *testing.B)   { benchSolv(b, 10, 1) }
-func BenchmarkIncremental100x10(b *testing.B) { benchSolv(b, 100, 10) }
-func BenchmarkIncremental1Kx100(b *testing.B) { benchSolv(b, 1000, 100) }
+func BenchmarkIncremental100x10(b *testing.B) { benchSolve(b, 100, 10) }
+func BenchmarkIncremental1Kx100(b *testing.B) { benchSolve(b, 1000, 100) }
 
-func BenchmarkCopy10x1K(b *testing.B)  { benchCopy(b, 10, 1000) }
 func BenchmarkCopy100x1K(b *testing.B) { benchCopy(b, 100, 1000) }
 func BenchmarkCopy1Kx1K(b *testing.B)  { benchCopy(b, 1000, 1000) }
