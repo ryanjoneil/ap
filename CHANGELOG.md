@@ -2,10 +2,13 @@
 
 ## v0.3.0
 
-* #15: Add `ap.Arc` type for convenient matrix creation.
-* LSAP solver auto-computes big-M.
-* Update Go to v1.20.
+* LSAP solver auto-computes big-M. 
+* LSAP solver provides `M` and `SetM` methods.
+* Update Go to v1.21.
 * Update linting and GitHub Actions.
+* Assigners operate on generic signed `int` types. 
+* Remove `Int64*` interface prefixes.
+* Improve docs and examples.
 
 ## v0.2.0
 
