@@ -34,9 +34,6 @@ func (p Permutation) Cycles() Cycles {
 // Inverse converts an assignment from a set U to a set V to an assignment from
 // V to U. If, for example, U is the left hand side of a bipartite matching and
 // V is the right hand side, this function essentially swaps their sides.
-//
-//	p := ap.Permutation{1, 3, 2, 0}
-//	p.Inverse() // {3, 0, 2, 1}
 func (p Permutation) Inverse() Permutation {
 	p2 := make(Permutation, len(p))
 	for u, v := range p {
@@ -49,8 +46,8 @@ func (p Permutation) Inverse() Permutation {
 func (p Permutation) Matrix() Matrix {
 	m := make(Matrix, len(p))
 	for u, v := range p {
-		m[u] = make([]Arc, len(p))
-		m[u][v] = 1
+		m[u] = make([]bool, len(p))
+		m[u][v] = true
 	}
 	return m
 }

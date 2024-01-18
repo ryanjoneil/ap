@@ -1,25 +1,29 @@
 package lsap
 
 import (
-	"math"
-
 	"github.com/ryanjoneil/ap"
 )
 
-// An Assigner for linear sum assignment problem.
-type Assigner interface {
+// An Assigner for linear sum assignment problem conforms to the [ap.Coster],
+// [ap.DualPricer] and [ap.ReducedCoster] interfaces. Dual bounds and reduced
+// costs are calculated as part of the assignment optimization. A copy method
+// allows one to integrate an LSAP solver into a search routine for reduced
+// cost-based domain filtering.
+type Assigner[T ap.Integer] interface {
 	ap.Assigner
-	ap.Int64Coster
-	ap.Int64DualPricer
-	ap.Int64ReducedCoster
+	ap.Coster[T]
+	ap.DualPricer[T]
+	ap.ReducedCoster[T]
 
-	Copy() Assigner
+	Copy() Assigner[T]
+	M() T
 	Remove(int, int)
+	SetM(T)
 }
 
 // New linear sum assignment problem (LSAP) from a square cost matrix.
 // Note: mutates the cost matrix.
-func New(A [][]int64) Assigner {
+func New[T ap.Integer](A [][]T) Assigner[T] {
 	n := len(A)
 	if n < 1 {
 		panic("empty cost matrix")
@@ -35,7 +39,7 @@ func New(A [][]int64) Assigner {
 	fBar := make([]int, n)
 	p := make([]int, n)
 	c := make([]int, n)
-	pi := make([]int64, n)
+	pi := make([]T, n)
 
 	for i := 0; i < n; i++ {
 		f[i] = -1
@@ -45,11 +49,11 @@ func New(A [][]int64) Assigner {
 		pi[i] = -1
 	}
 
-	a := &lsap{
-		M:    math.MaxInt64 / int64(n),
+	a := &LSAP[T]{
+		m:    ap.MaxOf[T]() / T(n),
 		a:    A,
-		u:    make([]int64, n),
-		v:    make([]int64, n),
+		u:    make([]T, n),
+		v:    make([]T, n),
 		f:    f,
 		fBar: fBar,
 		p:    p,
