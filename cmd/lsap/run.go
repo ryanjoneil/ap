@@ -60,7 +60,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	cycles := fs.Bool("cycles", false, "output cyclic assignment form")
 	dual := fs.Bool("dual", false, "output dual prices")
 	matrix := fs.Bool("matrix", false, "output matrix assignment form")
-	rc := fs.Bool("rc", false, "output reduced cost matrix")
+	rc := fs.Bool("rc", false, "output reduced costs (a matrix for dense input, a [u, v, rc] list for sparse input)")
 	scale := cli.ScaleFlag(fs)
 	fs.Usage = func() {
 		_, _ = fmt.Fprint(fs.Output(), usageText)

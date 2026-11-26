@@ -63,3 +63,11 @@ func TestHelp(t *testing.T) {
 		t.Errorf("%d %q", code, errOut)
 	}
 }
+
+func TestBadFlag(t *testing.T) {
+	code, out, errOut := runString([]string{"-bogus"}, "")
+	if code != 1 || out != "" || !strings.HasPrefix(errOut, "lsap: flag provided but not defined: -bogus\n") ||
+		strings.Count(errOut, "Usage") != 1 {
+		t.Errorf("%d %q %q", code, out, errOut)
+	}
+}

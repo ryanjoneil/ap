@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"io"
 	"math"
 	"reflect"
 	"strings"
@@ -31,6 +32,38 @@ func TestReadCostsFloatNeedsScale(t *testing.T) {
 	_, err := ReadCosts(strings.NewReader(`[[1.5]]`), 0)
 	if err == nil || !strings.Contains(err.Error(), "-scale") {
 		t.Errorf("got %v", err)
+	}
+}
+
+func TestReadCostsIntegralFloat(t *testing.T) {
+	for in, want := range map[string][][]int64{
+		`[[5.0, 1e3]]`:                {{5, 1000}},
+		`[[-2.0E2, 0.0]]`:             {{-200, 0}},
+		`[[9007199254740992.0]]`:      {{1 << 53}},
+		`[[-9.007199254740992e15]]`:   {{-(1 << 53)}},
+		`{"n":1,"edges":[[0,0,7e0]]}`: nil,
+	} {
+		c, err := ReadCosts(strings.NewReader(in), 0)
+		switch {
+		case err != nil:
+			t.Errorf("%s: %v", in, err)
+		case want != nil && !reflect.DeepEqual(c.Dense, want):
+			t.Errorf("%s: got %v; want %v", in, c.Dense, want)
+		case want == nil && (len(c.Edges) != 1 || c.Edges[0].Cost != 7):
+			t.Errorf("%s: got %v; want cost 7", in, c.Edges)
+		}
+	}
+	// Integral, but too large to be sure of without -scale.
+	for _, in := range []string{`[[1e300]]`, `[[1.8014398509481984e16]]`, `[[9007199254740993.0]]`, `[[1e400]]`} {
+		if _, err := ReadCosts(strings.NewReader(in), 0); err == nil || !strings.Contains(err.Error(), "out of range") {
+			t.Errorf("%s: got %v; want out of range error", in, err)
+		}
+	}
+	// Not integral, though some round to an integer as a float64.
+	for _, in := range []string{`[[1e-3]]`, `[[1.0000000000000000001]]`, `[[4503599627370497.5]]`, `[[1e-400]]`} {
+		if _, err := ReadCosts(strings.NewReader(in), 0); err == nil || !strings.Contains(err.Error(), "-scale") {
+			t.Errorf("%s: got %v; want -scale hint", in, err)
+		}
 	}
 }
 
@@ -110,6 +143,53 @@ func TestParse(t *testing.T) {
 	fs, _, buf := mk()
 	if c, e := Parse(fs, []string{"foo"}); c != 1 || !e || !strings.Contains(buf.String(), "x: unexpected argument foo") {
 		t.Errorf("positional: %d %v %q", c, e, buf.String())
+	}
+}
+
+func TestParseMessages(t *testing.T) {
+	mk := func() (*flag.FlagSet, *bytes.Buffer, *int) {
+		var buf bytes.Buffer
+		calls := 0
+		fs := flag.NewFlagSet("name", flag.ContinueOnError)
+		fs.SetOutput(&buf)
+		ScaleFlag(fs)
+		fs.Usage = func() {
+			calls++
+			_, _ = io.WriteString(fs.Output(), "USAGE\n")
+		}
+		return fs, &buf, &calls
+	}
+
+	fs, buf, calls := mk()
+	if c, e := Parse(fs, []string{"-bogus"}); c != 1 || !e {
+		t.Errorf("-bogus: %d %v", c, e)
+	}
+	if want := "name: flag provided but not defined: -bogus\nUSAGE\n"; buf.String() != want || *calls != 1 {
+		t.Errorf("-bogus: stderr %q, %d usage calls; want %q, 1 call", buf.String(), *calls, want)
+	}
+
+	fs, buf, calls = mk()
+	if c, e := Parse(fs, []string{"-scale", "x"}); c != 1 || !e {
+		t.Errorf("-scale x: %d %v", c, e)
+	}
+	if !strings.HasPrefix(buf.String(), "name: invalid value \"x\" for flag -scale") || *calls != 1 {
+		t.Errorf("-scale x: stderr %q, %d usage calls", buf.String(), *calls)
+	}
+
+	fs, buf, calls = mk()
+	if c, e := Parse(fs, []string{"-h"}); c != 0 || !e {
+		t.Errorf("-h: %d %v", c, e)
+	}
+	if buf.String() != "USAGE\n" || *calls != 1 {
+		t.Errorf("-h: stderr %q, %d usage calls; want usage once", buf.String(), *calls)
+	}
+
+	fs, buf, calls = mk()
+	if c, e := Parse(fs, []string{"foo"}); c != 1 || !e {
+		t.Errorf("foo: %d %v", c, e)
+	}
+	if want := "name: unexpected argument foo\nUSAGE\n"; buf.String() != want || *calls != 1 {
+		t.Errorf("foo: stderr %q, %d usage calls; want %q, 1 call", buf.String(), *calls, want)
 	}
 }
 
