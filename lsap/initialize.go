@@ -94,7 +94,7 @@ func (a *LSAP[T]) minCol(i int) int {
 	for j := 0; j < a.n; j++ {
 		if first ||
 			a.a[i][j]-a.v[j] < minVal ||
-			a.a[i][j] == minVal && a.fBar[j] < 0 {
+			a.a[i][j]-a.v[j] == minVal && a.fBar[j] < 0 {
 
 			first = false
 			minVal = a.a[i][j] - a.v[j]

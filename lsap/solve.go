@@ -20,8 +20,8 @@ func (a *LSAP[T]) solve() {
 }
 
 func (a *LSAP[T]) path(i int) int {
-	lr := []int{i}       // Vector of labelled rows
-	uc := map[int]bool{} // Set of unlabelled columns
+	lr := []int{i}          // Vector of labelled rows
+	uc := make([]bool, a.n) // uc[j] = true if column j is unlabelled
 
 	for j := 0; j < a.n; j++ {
 		uc[j] = true
@@ -30,11 +30,11 @@ func (a *LSAP[T]) path(i int) int {
 
 	for {
 		r := lr[len(lr)-1]
-		if r >= a.n {
-			break
-		}
 
-		for j := range uc {
+		for j := 0; j < a.n; j++ {
+			if !uc[j] {
+				continue
+			}
 			val := a.a[r][j] - a.u[r] - a.v[j]
 			if val < a.pi[j] {
 				a.pi[j] = val
@@ -43,8 +43,8 @@ func (a *LSAP[T]) path(i int) int {
 		}
 
 		found := false
-		for j := range uc {
-			if a.pi[j] == 0 {
+		for j := 0; j < a.n; j++ {
+			if uc[j] && a.pi[j] == 0 {
 				found = true
 				break
 			}
@@ -54,7 +54,10 @@ func (a *LSAP[T]) path(i int) int {
 			// d = min { pi[j] | j in uc }
 			first := true
 			var d T
-			for j := range uc {
+			for j := 0; j < a.n; j++ {
+				if !uc[j] {
+					continue
+				}
 				if first || a.pi[j] < d {
 					first = false
 					d = a.pi[j]
@@ -76,8 +79,8 @@ func (a *LSAP[T]) path(i int) int {
 
 		// j = first column in { k in uc | pi[k] = 0 }
 		j := -1
-		for k := range uc {
-			if a.pi[k] == 0 {
+		for k := 0; k < a.n; k++ {
+			if uc[k] && a.pi[k] == 0 {
 				j = k
 				break
 			}
@@ -85,15 +88,13 @@ func (a *LSAP[T]) path(i int) int {
 
 		if j >= 0 && a.fBar[j] >= 0 {
 			lr = append(lr, a.fBar[j])
-			delete(uc, j)
+			uc[j] = false
 		}
 
 		if j >= 0 && a.fBar[j] < 0 {
 			return j
 		}
 	}
-
-	return -1
 }
 
 func (a *LSAP[T]) increase(i, j int) {
