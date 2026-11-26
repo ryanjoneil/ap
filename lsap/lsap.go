@@ -7,7 +7,8 @@ import (
 	"github.com/ryanjoneil/ap"
 )
 
-// LSAP is a linear sum assignment problem solver. Create one with [New].
+// LSAP is a linear sum assignment problem solver. Create one with [New] for a
+// complete cost matrix, or with [NewSparse] for a sparse edge list.
 //
 // After an initial call to Assign, one can remove edges and call Assign again
 // to re-optimize incrementally. Copy duplicates a solver, including its
@@ -65,9 +66,32 @@ func New[T ap.Integer](costs [][]T) (*LSAP[T], error) {
 	return &LSAP[T]{k: d}, nil
 }
 
+// NewSparse returns a solver for the n×n assignment problem whose allowed
+// edges are given by edges, where an edge {U: u, V: v, Cost: c} allows
+// assigning u ∈ U to v ∈ V at cost c. Pairs not in edges are forbidden, so
+// Assign returns [ap.ErrInfeasible] if the edges admit no perfect assignment.
+// NewSparse copies edges, so later changes to edges don't affect the solver,
+// and the solver never modifies edges. The order of edges does not matter.
+//
+// NewSparse returns an error if n < 1, if n > math.MaxInt32 (the search
+// stores column indices as int32), if an edge is out of range or duplicated,
+// or if its costs could overflow T while solving. It requires
+//
+//	4·(n+1)·max |c| ≤ the largest value of T
+//
+// over the costs c of all edges.
+func NewSparse[T ap.Integer](n int, edges []ap.Edge[T]) (*LSAP[T], error) {
+	s, err := newSparse(n, edges)
+	if err != nil {
+		return nil, err
+	}
+	return &LSAP[T]{k: s}, nil
+}
+
 // Assign returns an optimal assignment. It returns [ap.ErrInfeasible] if
-// removed edges leave no feasible assignment. A removed edge never appears in
-// the returned assignment.
+// removed edges, or edges missing from a sparse solver, leave no feasible
+// assignment. A removed or missing edge never appears in the returned
+// assignment.
 func (a *LSAP[T]) Assign() (ap.Permutation, error) {
 	return a.k.assign()
 }
@@ -89,7 +113,7 @@ func (a *LSAP[T]) DualPrices() ap.DualPrices[T] {
 }
 
 // ReducedCost returns the reduced cost of edge (u, v), and false if the edge
-// is out of range or removed. The reduced cost of an edge outside the
+// is out of range, removed, or missing from a sparse solver. The reduced cost of an edge outside the
 // assignment is a lower bound on the additional cost of forcing that edge into
 // the assignment. The reduced cost is meaningful only after a successful call
 // to Assign, and undefined before any call to Assign or after a call to Assign
@@ -106,11 +130,12 @@ func (a *LSAP[T]) ReducedCost(u, v int) (T, bool) {
 }
 
 // Remove forbids edge (u, v) in later calls to Assign. It is a no-op if the
-// edge is out of range or already removed.
+// edge is out of range, missing or already removed.
 //
-// The initial optimization runs in O(n³) time, after which one can remove
-// edges from the resulting assignment and re-solve in O(n²) time per removed
-// assigned edge.
+// For a solver created with New, the initial optimization runs in O(n³) time,
+// after which one can remove edges from the resulting assignment and re-solve
+// in O(n²) time per removed assigned edge. For a solver created with
+// NewSparse with m edges, these are O(n·m·log m) and O(m·log m) time.
 func (a *LSAP[T]) Remove(u, v int) {
 	a.k.remove(u, v)
 }

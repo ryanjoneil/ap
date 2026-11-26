@@ -1,85 +1,132 @@
 package lsap_test
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
+	"github.com/ryanjoneil/ap"
+	"github.com/ryanjoneil/ap/internal/instances"
 	"github.com/ryanjoneil/ap/lsap"
 )
 
-func randomMatrix(rng *rand.Rand, n int) [][]int {
-	A := make([][]int, n)
-	for i := 0; i < n; i++ {
-		Ai := make([]int, n)
-		for j := 0; j < n; j++ {
-			Ai[j] = rng.Intn(100000)
-		}
-		A[i] = Ai
-	}
-	return A
+// Benchmark instances use the uniform class of book §4.10.1 with K = 10⁶.
+// Each benchmark generates its instance once with seed 1, outside the timed
+// loop. b.Loop runs the benchmark function body once, so the setup is never
+// repeated.
+const benchK = 1_000_000
+
+func benchRNG() *rand.Rand { return rand.New(rand.NewPCG(1, 1)) }
+
+func denseInstance(n int) [][]int64 {
+	rng := benchRNG()
+	return instances.Dense(n, instances.Uniform(rng, benchK))
 }
 
-func benchSolve(b *testing.B, size int, removes int) {
+func sparseInstance(n, degree int) []ap.Edge[int64] {
+	rng := benchRNG()
+	return instances.Sparse(rng, n, degree, instances.Uniform(rng, benchK))
+}
+
+// removeRows returns count rows of an n-row problem, chosen once so that every
+// iteration removes the same assigned edges.
+func removeRows(n, count int) []int {
+	rng := rand.New(rand.NewPCG(2, 2))
+	rows := make([]int, count)
+	for i := range rows {
+		rows[i] = rng.IntN(n)
+	}
+	return rows
+}
+
+func mustAssign(b *testing.B, a *lsap.LSAP[int64]) ap.Permutation {
 	b.Helper()
 
-	rng := rand.New(rand.NewSource(1))
-	matrices := [][][]int{}
-	for n := 0; n < b.N; n++ {
-		matrices = append(matrices, randomMatrix(rng, size))
+	p, err := a.Assign()
+	if err != nil {
+		b.Fatal(err)
 	}
+	return p
+}
 
-	b.ResetTimer()
+// benchIncremental solves a, then removes the assigned edge of each row in
+// rows in turn, re-solving after each removal.
+func benchIncremental(b *testing.B, a *lsap.LSAP[int64], rows []int) {
+	b.Helper()
 
-	for n := 0; n < b.N; n++ {
-		a, err := lsap.New(matrices[n])
-		if err != nil {
-			b.Fatal(err)
-		}
-		assign, err := a.Assign()
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		// Incrementally remove assignments and re-optimize.
-		for i := 0; i < removes; i++ {
-			u := rng.Intn(size)
-			v := assign[u]
-			a.Remove(u, v)
-			if assign, err = a.Assign(); err != nil {
-				b.Fatal(err)
-			}
-		}
+	p := mustAssign(b, a)
+	for _, u := range rows {
+		a.Remove(u, p[u])
+		p = mustAssign(b, a)
 	}
 }
 
-func benchCopy(b *testing.B, size int, copies int) {
-	b.Helper()
-
-	rng := rand.New(rand.NewSource(1))
-	matrices := [][][]int{}
-	for n := 0; n < b.N; n++ {
-		matrices = append(matrices, randomMatrix(rng, size))
-	}
-
-	b.ResetTimer()
-
-	for n := 0; n < b.N; n++ {
-		a, err := lsap.New(matrices[n])
+func benchDense(b *testing.B, n int) {
+	c := denseInstance(n)
+	for b.Loop() {
+		a, err := lsap.New(c)
 		if err != nil {
 			b.Fatal(err)
 		}
-		for i := 0; i < copies; i++ {
+		mustAssign(b, a)
+	}
+}
+
+func benchSparse(b *testing.B, n, degree int) {
+	edges := sparseInstance(n, degree)
+	for b.Loop() {
+		a, err := lsap.NewSparse(n, edges)
+		if err != nil {
+			b.Fatal(err)
+		}
+		mustAssign(b, a)
+	}
+}
+
+func BenchmarkDenseUniform100(b *testing.B) { benchDense(b, 100) }
+func BenchmarkDenseUniform1K(b *testing.B)  { benchDense(b, 1000) }
+func BenchmarkDenseUniform5K(b *testing.B)  { benchDense(b, 5000) }
+
+func BenchmarkDenseIncremental1Kx100(b *testing.B) {
+	c := denseInstance(1000)
+	rows := removeRows(1000, 100)
+	for b.Loop() {
+		a, err := lsap.New(c)
+		if err != nil {
+			b.Fatal(err)
+		}
+		benchIncremental(b, a, rows)
+	}
+}
+
+func BenchmarkDenseCopy1Kx1K(b *testing.B) {
+	c := denseInstance(1000)
+	for b.Loop() {
+		a, err := lsap.New(c)
+		if err != nil {
+			b.Fatal(err)
+		}
+		mustAssign(b, a)
+		for range 1000 {
 			a.Copy()
 		}
 	}
 }
 
-func BenchmarkSolve100(b *testing.B) { benchSolve(b, 100, 0) }
-func BenchmarkSolve1K(b *testing.B)  { benchSolve(b, 1000, 0) }
-func BenchmarkSolve10K(b *testing.B) { benchSolve(b, 10000, 0) }
+func BenchmarkSparseUniform10K(b *testing.B) {
+	benchSparse(b, 10_000, instances.BookDegree(10_000))
+}
 
-func BenchmarkIncremental100x10(b *testing.B) { benchSolve(b, 100, 10) }
-func BenchmarkIncremental1Kx100(b *testing.B) { benchSolve(b, 1000, 100) }
+func BenchmarkSparseUniform100K(b *testing.B) { benchSparse(b, 100_000, 10) }
 
-func BenchmarkCopy100x1K(b *testing.B) { benchCopy(b, 100, 1000) }
-func BenchmarkCopy1Kx1K(b *testing.B)  { benchCopy(b, 1000, 1000) }
+func BenchmarkSparseIncremental10Kx100(b *testing.B) {
+	n := 10_000
+	edges := sparseInstance(n, instances.BookDegree(n))
+	rows := removeRows(n, 100)
+	for b.Loop() {
+		a, err := lsap.NewSparse(n, edges)
+		if err != nil {
+			b.Fatal(err)
+		}
+		benchIncremental(b, a, rows)
+	}
+}
