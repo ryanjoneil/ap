@@ -1,11 +1,14 @@
 package lsap
 
-func (a *LSAP[T]) initialize() {
+// initialize finds a partial assignment and feasible dual prices that satisfy
+// complementary slackness. It is three edge preprocessing (book §4.4.4,
+// Algorithm 4.11), as coded in APC by Carpaneto, Martello, and Toth (1988).
+func (a *dense[T]) initialize() {
 	a.initializePhase1()
 	a.initializePhase2()
 }
 
-func (a *LSAP[T]) initializePhase1() {
+func (a *dense[T]) initializePhase1() {
 	for j := 0; j < a.n; j++ {
 		r := a.minRow(j)
 		a.v[j] = a.a[r][j]
@@ -18,7 +21,7 @@ func (a *LSAP[T]) initializePhase1() {
 	}
 }
 
-func (a *LSAP[T]) initializePhase2() {
+func (a *dense[T]) initializePhase2() {
 	for i := 0; i < a.n; i++ {
 		if a.f[i] >= 0 {
 			continue
@@ -70,7 +73,7 @@ func (a *LSAP[T]) initializePhase2() {
 	}
 }
 
-func (a *LSAP[T]) minRow(j int) int {
+func (a *dense[T]) minRow(j int) int {
 	first := true
 	var minVal T
 	minRow := 0
@@ -86,7 +89,7 @@ func (a *LSAP[T]) minRow(j int) int {
 	return minRow
 }
 
-func (a *LSAP[T]) minCol(i int) int {
+func (a *dense[T]) minCol(i int) int {
 	first := true
 	var minVal T
 	minCol := 0

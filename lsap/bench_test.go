@@ -31,15 +31,23 @@ func benchSolve(b *testing.B, size int, removes int) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		a := lsap.New(matrices[n])
-		assign := a.Assign()
+		a, err := lsap.New(matrices[n])
+		if err != nil {
+			b.Fatal(err)
+		}
+		assign, err := a.Assign()
+		if err != nil {
+			b.Fatal(err)
+		}
 
 		// Incrementally remove assignments and re-optimize.
 		for i := 0; i < removes; i++ {
 			u := rng.Intn(size)
 			v := assign[u]
 			a.Remove(u, v)
-			assign = a.Assign()
+			if assign, err = a.Assign(); err != nil {
+				b.Fatal(err)
+			}
 		}
 	}
 }
@@ -56,7 +64,10 @@ func benchCopy(b *testing.B, size int, copies int) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		a := lsap.New(matrices[n])
+		a, err := lsap.New(matrices[n])
+		if err != nil {
+			b.Fatal(err)
+		}
 		for i := 0; i < copies; i++ {
 			a.Copy()
 		}

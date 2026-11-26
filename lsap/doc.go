@@ -9,9 +9,24 @@
 // graph, while c is the cost matrix for those edges. The constraints specify
 // that each row (u ∈ U) is assigned to one column (v ∈ V) and vice versa.
 //
-// It is a port of the original Fortran code for the dense AP discussed in:
+// The dense solver is a port of the Fortran code APC for the dense AP given
+// in:
 //
 //	Giorgio Carpaneto, Silvano Martello, and Paolo Toth.
 //	"Algorithms and codes for the assignment problem."
-//	Annals of Operations Research 13, no. 1 (1988): 191-223.
+//	In B. Simeone, P. Toth, G. Gallo, F. Maffioli, and S. Pallottino,
+//	editors, "Fortran Codes for Network Optimization."
+//	Annals of Operations Research 13 (1988): 193-223. Baltzer, Basel.
+//
+// APC implements Lawler's O(n³) version of the Hungarian algorithm, initialized
+// with three edge preprocessing. Both are described in:
+//
+//	Rainer Burkard, Mauro Dell'Amico, and Silvano Martello.
+//	"Assignment Problems - Revised Reprint."
+//	Society for Industrial and Applied Mathematics (2012).
+//
+// See §4.2.2 (Algorithm 4.4, Augment, and Algorithm 4.5, Hungarian_3) for the
+// solve, §4.4.4 (Algorithm 4.11, Three_edge_preprocessing) for the
+// initialization, and §4.9 for APC. The book's bibliography lists the
+// Carpaneto, Martello, and Toth paper as reference [169].
 package lsap

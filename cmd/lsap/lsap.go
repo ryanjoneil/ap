@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/ryanjoneil/ap/lsap"
 )
@@ -32,6 +33,13 @@ func usage() {
 	flag.PrintDefaults()
 }
 
+// fail writes err to stderr as "lsap: <message>" and exits 1. Library errors
+// already start with "lsap: ", so that prefix isn't repeated.
+func fail(err error) {
+	_, _ = fmt.Fprintf(os.Stderr, "lsap: %s\n", strings.TrimPrefix(err.Error(), "lsap: "))
+	os.Exit(1)
+}
+
 func main() {
 	cycles := flag.Bool("cycles", false, "output cyclic assignment form")
 	dual := flag.Bool("dual", false, "output dual prices")
@@ -45,8 +53,14 @@ func main() {
 		panic(err)
 	}
 
-	a := lsap.New(c)
-	p := a.Assign()
+	a, err := lsap.New(c)
+	if err != nil {
+		fail(err)
+	}
+	p, err := a.Assign()
+	if err != nil {
+		fail(err)
+	}
 	out := map[string]any{
 		"permutation": p,
 		"cost":        a.Cost(),
@@ -69,7 +83,7 @@ func main() {
 		for u := range p {
 			rcRow := make([]int64, len(p))
 			for v := range p {
-				rcRow[v] = a.ReducedCost(u, v)
+				rcRow[v], _ = a.ReducedCost(u, v)
 			}
 			rcMatrix[u] = rcRow
 		}

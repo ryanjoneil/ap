@@ -1,21 +1,24 @@
 package ap_test
 
 import (
-	"fmt"
+	"testing"
 
 	"github.com/ryanjoneil/ap"
 )
 
-func ExampleMaxOf() {
-	i := ap.MaxOf[int64]()
-	fmt.Println(i)
-	// Output:
-	// 9223372036854775807
+func sum[T ap.Integer](xs ...T) T {
+	var s T
+	for _, x := range xs {
+		s += x
+	}
+	return s
 }
 
-func ExampleMinOf() {
-	i := ap.MinOf[int64]()
-	fmt.Println(i)
-	// Output:
-	// -9223372036854775808
+type cents int64
+
+func TestInteger(t *testing.T) {
+	if sum[int](1, 2) != 3 || sum[int8](1, 2) != 3 || sum[int16](1, 2) != 3 ||
+		sum[int32](1, 2) != 3 || sum[int64](1, 2) != 3 || sum[cents](1, 2) != 3 {
+		t.Fail()
+	}
 }
