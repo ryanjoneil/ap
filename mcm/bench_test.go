@@ -1,4 +1,4 @@
-package matching_test
+package mcm_test
 
 import (
 	"math/rand/v2"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/ryanjoneil/ap"
 	"github.com/ryanjoneil/ap/internal/instances"
-	"github.com/ryanjoneil/ap/matching"
+	"github.com/ryanjoneil/ap/mcm"
 )
 
 // Instances are generated once with seed 1, outside the timed loop.
@@ -20,7 +20,7 @@ func BenchmarkSparse100K(b *testing.B) {
 	}
 	b.ResetTimer()
 	for b.Loop() {
-		m, err := matching.NewSparse(100000, 100000, pairs)
+		m, err := mcm.NewSparse(100000, 100000, pairs)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -39,7 +39,7 @@ func BenchmarkDense2K(b *testing.B) {
 	}
 	b.ResetTimer()
 	for b.Loop() {
-		m, err := matching.New(adj)
+		m, err := mcm.New(adj)
 		if err != nil {
 			b.Fatal(err)
 		}

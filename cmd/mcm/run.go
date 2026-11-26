@@ -7,12 +7,12 @@ import (
 
 	"github.com/ryanjoneil/ap"
 	"github.com/ryanjoneil/ap/internal/cli"
-	"github.com/ryanjoneil/ap/matching"
+	"github.com/ryanjoneil/ap/mcm"
 )
 
-const name = "matching"
+const name = "mcm"
 
-const usageText = `matching finds a maximum cardinality matching in a bipartite graph.
+const usageText = `mcm finds a maximum cardinality matching (MCM) in a bipartite graph.
 
 Input is a dense boolean adjacency matrix, a JSON array of arrays with one row
 per vertex in U and one column per vertex in V, or a sparse graph, a JSON
@@ -24,9 +24,9 @@ whether it is "perfect" (both sides the same size and fully matched), and
 
 Usage:
 
-matching < input.json -cycles > output.json
+mcm < input.json -cycles > output.json
 
-cat <<EOF | matching | jq
+cat <<EOF | mcm | jq
 [
 	[ true,  false, true  ],
 	[ true,  true,  false ],
@@ -64,11 +64,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return cli.Fail(stderr, name, err)
 	}
 
-	var m *matching.Matcher
+	var m *mcm.MCM
 	if pairs.Dense != nil {
-		m, err = matching.New(pairs.Dense)
+		m, err = mcm.New(pairs.Dense)
 	} else {
-		m, err = matching.NewSparse(pairs.NU, pairs.NV, pairs.Edges)
+		m, err = mcm.NewSparse(pairs.NU, pairs.NV, pairs.Edges)
 	}
 	if err != nil {
 		return cli.Fail(stderr, name, err)

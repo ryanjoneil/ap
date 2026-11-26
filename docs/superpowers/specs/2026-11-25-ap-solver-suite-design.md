@@ -78,7 +78,7 @@ Each milestone is a GitHub milestone and a release.
 
 | Milestone | Contents |
 |---|---|
-| **v0.5** | `ap`/`lsap` API cleanup; sparse `lsap`; shared internal plumbing and CLI conventions; `matching` (bipartite matching); `lbap` (bottleneck assignment, closes #2); benchmark instance generators. |
+| **v0.5** | `ap`/`lsap` API cleanup; sparse `lsap`; shared internal plumbing and CLI conventions; `mcm` (bipartite matching); `lbap` (bottleneck assignment, closes #2); benchmark instance generators. |
 | v0.6 | k-best assignments (Murty's ranking), built on incremental `lsap`. |
 | v0.7 | Quadratic assignment (QAP): strong heuristics for large instances, plus an exact branch-and-bound with the Gilmore–Lawler bound for small instances (n ≤ about 30). Benchmarked against QAPLIB's best-known solutions. |
 | Later, as wanted | Rectangular and k-cardinality LSAP; a one-shot LSAP algorithm if benchmarks call for it; balanced and lexicographic bottleneck assignment; semi-assignment; axial 3-index assignment. |
@@ -107,9 +107,15 @@ design when it starts.
 
 ### Package and type shape
 
-Each problem type has a package (`lsap`, `matching`, `lbap`) and a binary
+Each problem type has a package (`lsap`, `mcm`, `lbap`) and a binary
 under `cmd/<package>`. Each package provides:
 
+- **Names:** each package and its binary are named by a lowercase acronym
+  for the problem: the book's acronym where one exists (`lsap`, `lbap`,
+  `qap`, `lexbap`), otherwise one we define in the package doc (`mcm`,
+  maximum cardinality matching). The solver type is the uppercase acronym
+  (`lsap.LSAP`, `lbap.LBAP`, `mcm.MCM`). Go names can't start with a digit,
+  so a 3-index problem needs a name like `ap3`.
 - `New(...)` for dense input and `NewSparse(...)` for sparse input. Both
   return `(*Concrete, error)`. They return a concrete pointer type, not an
   interface, so methods can be added later without breaking callers.
@@ -201,7 +207,7 @@ confirmed against the code actually written):
 |---|---|
 | dense `lsap` | G. Carpaneto, S. Martello, P. Toth, "Algorithms and codes for the assignment problem," *Ann. Oper. Res.* 13 (1988) [book ref 169]; book §4.4 |
 | sparse `lsap` | R. Jonker, A. Volgenant, "A shortest augmenting path algorithm for dense and sparse linear assignment problems," *Computing* 38:325–340 (1987) [book ref 408]; book §4.4, Algorithms 4.9–4.10. Cite whichever source the search actually follows. |
-| `matching` | J. Hopcroft, R.M. Karp, "An n^5/2 algorithm for maximum matchings in bipartite graphs," *SIAM J. Comput.* 2:225–231 (1973) [book ref 389]; book §3.3, Algorithm 3.2 |
+| `mcm` | J. Hopcroft, R.M. Karp, "An n^5/2 algorithm for maximum matchings in bipartite graphs," *SIAM J. Comput.* 2:225–231 (1973) [book ref 389]; book §3.3, Algorithm 3.2 |
 | `lbap` threshold | R. Garfinkel, "An improved algorithm for the bottleneck assignment problem," *Oper. Res.* 19:1747–1751 (1971) [book ref 313]; book §6.2.2, Algorithm 6.1 |
 | Machol–Wien instances | R.E. Machol, M. Wien, "A hard assignment problem," *Oper. Res.* 24:190–192 (1976), and Errata, *Oper. Res.* 25:364 (1977) [book refs 488–489]; book §4.10.1 |
 | other instance classes | book §4.10.1 and the sources it cites |
@@ -326,17 +332,17 @@ func (a *LSAP[T]) Copy() *LSAP[T]
   sparse subsets of it); brute-force checks on small sparse instances,
   including infeasible ones; `Remove` and `Copy` on sparse instances.
 
-### 3. `matching`: maximum-cardinality bipartite matching
+### 3. `mcm`: maximum-cardinality bipartite matching
 
 ```go
-func New(adjacency [][]bool) (*Matcher, error)       // dense, nU × nV
-func NewSparse(nU, nV int, edges []ap.Pair) (*Matcher, error)
+func New(adjacency [][]bool) (*MCM, error)       // dense, nU × nV
+func NewSparse(nU, nV int, edges []ap.Pair) (*MCM, error)
 
-func (m *Matcher) Match() []int                   // m[u] = v, or -1 if unmatched
-func (m *Matcher) Size() int                      // matching cardinality
-func (m *Matcher) Assign() (ap.Permutation, error) // perfect matching; nU == nV required
-func (m *Matcher) Remove(u, v int)
-func (m *Matcher) Copy() *Matcher
+func (m *MCM) Match() []int                   // m[u] = v, or -1 if unmatched
+func (m *MCM) Size() int                      // matching cardinality
+func (m *MCM) Assign() (ap.Permutation, error) // perfect matching; nU == nV required
+func (m *MCM) Remove(u, v int)
+func (m *MCM) Copy() *MCM
 ```
 
 - Works on rectangular graphs (nU ≠ nV). `Assign` returns
@@ -346,7 +352,7 @@ func (m *Matcher) Copy() *Matcher
   incrementally rather than starting over.
 - The dense kernel's representation (for example bitsets or conversion to
   CSR) is the builder's call, decided by benchmark.
-- **CLI `cmd/matching`:**
+- **CLI `cmd/mcm`:**
   - Dense input is a JSON array of arrays of booleans, `nU` rows of `nV`.
     Sparse input is `{"nu": .., "nv": .., "edges": [[u, v], ...]}`.
   - Output is `{"status": "optimal", "size": k, "perfect": bool,
@@ -377,7 +383,7 @@ func (a *LBAP[T]) Copy() *LBAP[T]
 
 - First algorithm: a threshold method, i.e. binary search over the sorted
   distinct costs, checking for a perfect matching among edges at or below the
-  threshold. It reuses `matching` (Hopcroft–Karp), warm-starting each check
+  threshold. It reuses `mcm` (Hopcroft–Karp), warm-starting each check
   from the previous matching. An augmenting-path method (book Algorithm 6.3)
   is added only if benchmarks show the threshold method losing.
 - Bottleneck problems have many optimal assignments. Which one is returned
@@ -447,7 +453,7 @@ access, once this design is approved.
   2. internal plumbing and CLI conventions (`-scale`, format detection,
      status, errors, testable `run`)
   3. sparse `lsap`
-  4. `matching` package and CLI
+  4. `mcm` package and CLI
   5. `lbap` package and CLI (#2)
   6. benchmark instance generators and external comparison
 - Create `v0.6` and `v0.7` milestones, each with one tracking issue.
@@ -486,6 +492,7 @@ access, once this design is approved.
 - Every implementation cites its source.
 - `ap` keeps shared types only. Its interfaces are removed, `MinOf` and
   `MaxOf` become internal, and `ReducedCost` uses the comma-ok form.
+- Package and binary names are acronyms (`mcm` for bipartite matching).
 
 ## Calls made by Claude (for the owner to check)
 
@@ -496,19 +503,19 @@ access, once this design is approved.
 - Sparse benchmark instances: n ≈ 100,000, average degree ≈ 10.
 - A benchmark loss against SciPy or OR-Tools becomes a follow-up issue and
   doesn't block v0.5.
-- The `cmd/matching` JSON format and its `"perfect"` field.
+- The `cmd/mcm` JSON format and its `"perfect"` field.
 - `"status"` on every CLI output; infeasible is exit code 0.
 - Sparse JSON edges as compact arrays, e.g. `[u, v, cost]`.
 - `ReducedCost` returns `(T, bool)`, with `false` for removed or missing
   edges.
-- Package and binary names: `matching` and `lbap`.
-- The LBAP threshold method first, reusing `matching`.
+- Package and binary names are acronyms (`mcm` for bipartite matching).
+- The LBAP threshold method first, reusing `mcm`.
 
 ## Left to the builder
 
 - The exact `internal/` package layout.
 - Dense kernel representations (big-M or a forbidden-edge set for `lsap`;
-  bitsets or CSR for `matching`), decided by benchmark.
+  bitsets or CSR for `mcm`), decided by benchmark.
 - How `Copy` avoids duplicating cost data.
 - The exact overflow bounds, as long as each is documented and tested.
 - Whether a solver stays reusable after returning an error.

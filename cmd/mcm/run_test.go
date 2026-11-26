@@ -58,7 +58,7 @@ func TestSquareNotPerfect(t *testing.T) {
 
 func TestInvalid(t *testing.T) {
 	code, out, errOut := runString(nil, `[[1,0]]`)
-	if code != 1 || out != "" || !strings.HasPrefix(errOut, "matching: ") {
+	if code != 1 || out != "" || !strings.HasPrefix(errOut, "mcm: ") {
 		t.Errorf("%d %q %q", code, out, errOut)
 	}
 }

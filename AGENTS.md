@@ -6,7 +6,7 @@ Standing rules for anyone, human or agent, working in this repo.
 
 `ap` is a standard-library-only Go module of assignment-problem solvers,
 generic over integer costs: `lsap` (linear sum assignment, dense and
-sparse), `matching` (maximum-cardinality bipartite matching) and `lbap`
+sparse), `mcm` (maximum-cardinality bipartite matching) and `lbap`
 (linear bottleneck assignment), each with a JSON-in/JSON-out CLI under
 `cmd/`. The design and roadmap are in
 [the design doc](docs/superpowers/specs/2026-11-25-ap-solver-suite-design.md).
@@ -16,6 +16,9 @@ sparse), `matching` (maximum-cardinality bipartite matching) and `lbap`
 - Standard library only. Don't add `require` lines to `go.mod`.
 - Library costs are integers (generic over `ap.Integer`). Only the CLIs
   accept non-integer input, through `-scale`.
+- Name each package and binary by a lowercase acronym for its problem (the
+  book's where one exists, else one defined in the package doc: `lsap`,
+  `lbap`, `mcm`); the solver type is the uppercase acronym.
 - Test first. Check every exact solver against `internal/bruteforce`.
 - Cite every implementation. In short: each package's `doc.go` has the full
   reference plus the book section and algorithm number; each kernel's doc

@@ -1,10 +1,10 @@
-// Package matching finds maximum-cardinality matchings in bipartite graphs.
-// Given a graph with rows U and columns V, a matching is a set of edges, no
+// Package mcm solves maximum cardinality matching (MCM) problems on bipartite
+// graphs. Given a graph with rows U and columns V, a matching is a set of edges, no
 // two sharing a row or a column; the solver finds one with as many edges as
 // possible. For a square graph this is a perfect matching (a feasible
 // assignment) exactly when its size is |U| = |V|.
 //
-// [New] builds a matcher from a boolean adjacency matrix, and [NewSparse]
+// [New] builds a solver from a boolean adjacency matrix, and [NewSparse]
 // builds one from a list of edges. Both support Remove, incremental
 // re-solve and Copy.
 //
@@ -24,4 +24,4 @@
 // matching is greedy: each row, in increasing order, takes the first free
 // column in column order among its edges. After a Remove, the solver
 // re-optimizes from the previous matching rather than starting over.
-package matching
+package mcm

@@ -1,4 +1,4 @@
-package matching_test
+package mcm_test
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/ryanjoneil/ap"
 	"github.com/ryanjoneil/ap/internal/bruteforce"
-	"github.com/ryanjoneil/ap/matching"
+	"github.com/ryanjoneil/ap/mcm"
 )
 
 func randOK(rng *rand.Rand, nU, nV int, p float64) [][]bool {
@@ -57,7 +57,7 @@ func TestMatchBruteForce(t *testing.T) {
 	for i := range 1000 {
 		nU, nV := 1+rng.IntN(7), 1+rng.IntN(7)
 		ok := randOK(rng, nU, nV, []float64{0.2, 0.5, 0.8}[i%3])
-		m, err := matching.NewSparse(nU, nV, pairsOf(ok))
+		m, err := mcm.NewSparse(nU, nV, pairsOf(ok))
 		if err != nil && len(pairsOf(ok)) == 0 {
 			continue
 		}
@@ -73,7 +73,7 @@ func TestMatchBruteForce(t *testing.T) {
 }
 
 func TestAssign(t *testing.T) {
-	m, err := matching.New([][]bool{{true, false}, {true, true}})
+	m, err := mcm.New([][]bool{{true, false}, {true, true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestAssign(t *testing.T) {
 		{{true, true, true}},
 		{{true, false}, {true, false}},
 	} {
-		m, err := matching.New(adj)
+		m, err := mcm.New(adj)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,7 +94,7 @@ func TestAssign(t *testing.T) {
 		}
 	}
 	// Non-square: Assign still solves, so Size is valid.
-	m, _ = matching.New([][]bool{{true, true, true}})
+	m, _ = mcm.New([][]bool{{true, true, true}})
 	_, _ = m.Assign()
 	if m.Size() != 1 {
 		t.Fatalf("Size %d want 1", m.Size())
@@ -102,14 +102,14 @@ func TestAssign(t *testing.T) {
 }
 
 func TestSizeBeforeMatch(t *testing.T) {
-	m, _ := matching.New([][]bool{{true}})
+	m, _ := mcm.New([][]bool{{true}})
 	if m.Size() != 0 {
 		t.Fatalf("Size %d want 0", m.Size())
 	}
 }
 
 func TestMatchReturnsCopy(t *testing.T) {
-	m, _ := matching.New([][]bool{{true}})
+	m, _ := mcm.New([][]bool{{true}})
 	a := m.Match()
 	a[0] = 99
 	if b := m.Match(); b[0] != 0 {
@@ -129,7 +129,7 @@ func TestRemoveIncremental(t *testing.T) {
 		if len(pairsOf(ok)) == 0 {
 			continue
 		}
-		m, err := matching.NewSparse(nU, nV, pairsOf(ok))
+		m, err := mcm.NewSparse(nU, nV, pairsOf(ok))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -171,7 +171,7 @@ func TestRemoveIncremental(t *testing.T) {
 }
 
 func TestRemoveUnmatchedKeepsSolved(t *testing.T) {
-	m, _ := matching.New([][]bool{{true, true}, {false, true}})
+	m, _ := mcm.New([][]bool{{true, true}, {false, true}})
 	if got := m.Match(); !slices.Equal(got, []int{0, 1}) {
 		t.Fatalf("got %v", got)
 	}
@@ -183,7 +183,7 @@ func TestRemoveUnmatchedKeepsSolved(t *testing.T) {
 
 func TestCopyIndependent(t *testing.T) {
 	ok := [][]bool{{true, true, false}, {true, true, true}, {false, true, true}}
-	m, _ := matching.New(ok)
+	m, _ := mcm.New(ok)
 	before := m.Match()
 	c := m.Copy()
 	for u, v := range before {
@@ -214,21 +214,21 @@ func TestNewErrors(t *testing.T) {
 		f    func() error
 		want string
 	}{
-		{"empty", func() error { _, e := matching.New([][]bool{}); return e }, "empty"},
-		{"empty row", func() error { _, e := matching.New([][]bool{{}}); return e }, "empty"},
-		{"ragged", func() error { _, e := matching.New([][]bool{{true, true}, {true}}); return e }, "ragged"},
+		{"empty", func() error { _, e := mcm.New([][]bool{}); return e }, "empty"},
+		{"empty row", func() error { _, e := mcm.New([][]bool{{}}); return e }, "empty"},
+		{"ragged", func() error { _, e := mcm.New([][]bool{{true, true}, {true}}); return e }, "ragged"},
 		{"range", func() error {
-			_, e := matching.NewSparse(2, 2, []ap.Pair{{U: 2, V: 0}})
+			_, e := mcm.NewSparse(2, 2, []ap.Pair{{U: 2, V: 0}})
 			return e
 		}, "out of range"},
 		{"duplicate", func() error {
-			_, e := matching.NewSparse(2, 2, []ap.Pair{{U: 0, V: 0}, {U: 0, V: 0}})
+			_, e := mcm.NewSparse(2, 2, []ap.Pair{{U: 0, V: 0}, {U: 0, V: 0}})
 			return e
 		}, "duplicate"},
 	}
 	for _, c := range cases {
 		err := c.f()
-		if err == nil || !strings.HasPrefix(err.Error(), "matching: ") ||
+		if err == nil || !strings.HasPrefix(err.Error(), "mcm: ") ||
 			!strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: got %v", c.name, err)
 		}
@@ -238,7 +238,7 @@ func TestNewErrors(t *testing.T) {
 func TestNewCopiesInput(t *testing.T) {
 	adj := [][]bool{{true, true}, {true, true}}
 	pairs := []ap.Pair{{U: 0, V: 0}, {U: 0, V: 1}, {U: 1, V: 0}}
-	m, _ := matching.New(adj)
+	m, _ := mcm.New(adj)
 	m.Remove(0, 0)
 	m.Remove(1, 1)
 	m.Match()
@@ -247,7 +247,7 @@ func TestNewCopiesInput(t *testing.T) {
 			t.Fatalf("adj modified: %v", adj)
 		}
 	}
-	s, _ := matching.NewSparse(2, 2, pairs)
+	s, _ := mcm.NewSparse(2, 2, pairs)
 	s.Remove(0, 0)
 	s.Match()
 	if pairs[0] != (ap.Pair{U: 0, V: 0}) || pairs[1] != (ap.Pair{U: 0, V: 1}) || pairs[2] != (ap.Pair{U: 1, V: 0}) {

@@ -1,13 +1,13 @@
-package matching_test
+package mcm_test
 
 import (
 	"fmt"
 
-	"github.com/ryanjoneil/ap/matching"
+	"github.com/ryanjoneil/ap/mcm"
 )
 
 func Example() {
-	m, err := matching.New([][]bool{
+	m, err := mcm.New([][]bool{
 		{true, true, false},
 		{true, false, false},
 		{false, true, true},

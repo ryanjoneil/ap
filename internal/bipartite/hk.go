@@ -1,5 +1,5 @@
 // Package bipartite implements the Hopcroft–Karp maximum-cardinality bipartite
-// matching kernel shared by the matching and lbap solvers.
+// matching kernel shared by the mcm and lbap solvers.
 //
 // References:
 //
