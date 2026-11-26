@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/ryanjoneil/ap"
@@ -161,10 +162,18 @@ func TestNewSparseErrors(t *testing.T) {
 		"out of range": {2, []ap.Edge[int64]{{U: 0, V: 2, Cost: 1}}},
 		"negative":     {2, []ap.Edge[int64]{{U: -1, V: 0, Cost: 1}}},
 		"duplicate":    {2, []ap.Edge[int64]{{U: 0, V: 1, Cost: 1}, {U: 0, V: 1, Cost: 2}}},
-		"too large":    {math.MaxInt32 + 1, nil},
 	} {
 		if _, err := lsap.NewSparse(tc.n, tc.edges); err == nil {
 			t.Errorf("%s: want error", name)
+		}
+	}
+	// n = math.MaxInt32 + 1 only fits in a 64-bit int. Computing it at run
+	// time keeps the test compiling on 32-bit platforms.
+	if strconv.IntSize == 64 {
+		n := math.MaxInt32
+		n++
+		if _, err := lsap.NewSparse[int64](n, nil); err == nil {
+			t.Errorf("n = %d: want error", n)
 		}
 	}
 	// 4·(2+1)·11 = 132 > 127.

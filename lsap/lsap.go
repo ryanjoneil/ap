@@ -18,7 +18,10 @@ import (
 // only after a successful call to Assign. They are undefined before any call
 // to Assign, and after a call to Assign that returns an error.
 //
-// An LSAP is not safe for concurrent use. Use Copy to work in parallel.
+// An LSAP is not safe for concurrent use, with one exception: several
+// goroutines may call Copy on the same solver at once, so that a solved parent
+// can seed parallel work. No other method may run concurrently with any
+// method, including Copy, on the same solver.
 type LSAP[T ap.Integer] struct{ k kernel[T] }
 
 // kernel is a solver implementation behind an LSAP.
@@ -44,7 +47,11 @@ type kernel[T ap.Integer] interface {
 //
 //	4·(n+1)·max(|minC|, |M|) ≤ the largest value of T
 //
-// and computes M with overflow checks.
+// and computes M with overflow checks. The bound is restrictive for narrow
+// types: for example, with T = int32 and n = 1000, costs in [0, 535] are
+// accepted but costs in [0, 536] are not, since
+// 4·1001·(1000·536 + 536 + 1) > 2³¹−1. Use int64, or NewSparse (which needs
+// no M), for wider cost ranges.
 func New[T ap.Integer](costs [][]T) (*LSAP[T], error) {
 	n := len(costs)
 	if n == 0 {
@@ -142,6 +149,10 @@ func (a *LSAP[T]) Remove(u, v int) {
 
 // Copy returns an independent solver with the same costs, removals and
 // current solution. Changes to either solver never affect the other.
+//
+// Copy may be called concurrently on the same solver from several
+// goroutines. No other method may run concurrently with anything on that
+// solver, including Copy.
 func (a *LSAP[T]) Copy() *LSAP[T] {
 	return &LSAP[T]{k: a.k.copy()}
 }
