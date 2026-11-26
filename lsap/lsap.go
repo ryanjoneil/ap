@@ -13,6 +13,10 @@ import (
 // to re-optimize incrementally. Copy duplicates a solver, including its
 // current solution, for use in tree search.
 //
+// The results reported by Cost, DualPrices and ReducedCost are meaningful
+// only after a successful call to Assign. They are undefined before any call
+// to Assign, and after a call to Assign that returns an error.
+//
 // An LSAP is not safe for concurrent use. Use Copy to work in parallel.
 type LSAP[T ap.Integer] struct{ k kernel[T] }
 
@@ -68,23 +72,28 @@ func (a *LSAP[T]) Assign() (ap.Permutation, error) {
 	return a.k.assign()
 }
 
-// Cost returns the total cost of the assignment found by the last successful
-// call to Assign.
+// Cost returns the total cost of the assignment returned by Assign. It is
+// meaningful only after a successful call to Assign, and undefined before any
+// call to Assign or after a call to Assign that returns an error.
 func (a *LSAP[T]) Cost() T {
 	return a.k.cost()
 }
 
 // DualPrices returns the dual prices associated with the assignment
-// constraints of the U and V sets. After a successful call to Assign,
-// complementary slackness conditions hold.
+// constraints of the U and V sets, which satisfy complementary slackness with
+// the assignment returned by Assign. They are meaningful only after a
+// successful call to Assign, and undefined before any call to Assign or after
+// a call to Assign that returns an error.
 func (a *LSAP[T]) DualPrices() ap.DualPrices[T] {
 	return a.k.dualPrices()
 }
 
 // ReducedCost returns the reduced cost of edge (u, v), and false if the edge
-// is out of range or removed. After a successful call to Assign, the reduced
-// cost of an edge outside the assignment is a lower bound on the additional
-// cost of forcing that edge into the assignment.
+// is out of range or removed. The reduced cost of an edge outside the
+// assignment is a lower bound on the additional cost of forcing that edge into
+// the assignment. The reduced cost is meaningful only after a successful call
+// to Assign, and undefined before any call to Assign or after a call to Assign
+// that returns an error. The ok result is always valid.
 //
 // For example, given some valid primal bound p, an edge (u,v) cannot be part
 // of an assignment better than p if:
