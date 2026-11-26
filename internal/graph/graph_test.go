@@ -51,6 +51,31 @@ func TestErrors(t *testing.T) {
 	}
 }
 
+// TestMessages checks the exact messages, which the solvers wrap with their
+// own package prefix and the CLIs show to users.
+func TestMessages(t *testing.T) {
+	errOf := func(_ any, err error) error { return err }
+	errOf3 := func(_, _ any, err error) error { return err }
+	for want, err := range map[string]error{
+		"graph is empty: nu = -1; want nu ≥ 1":                   errOf(FromPairs(-1, 1, nil)),
+		"graph is empty: nv = 0; want nv ≥ 1":                    errOf(FromPairs(1, 0, nil)),
+		"graph is empty: n = 0; want n ≥ 1":                      errOf3(FromEdges[int](0, nil)),
+		"edge 1 (0, 2) out of range for nu = 2, nv = 2":          errOf(FromPairs(2, 2, []ap.Pair{{U: 0, V: 0}, {U: 0, V: 2}})),
+		"edge 0 (-1, 0) out of range for n = 2":                  errOf3(FromEdges(2, []ap.Edge[int]{{U: -1, V: 0}})),
+		"duplicate edge (0, 1)":                                  errOf(FromPairs(2, 2, []ap.Pair{{U: 0, V: 1}, {U: 0, V: 1}})),
+		"empty adjacency matrix":                                 errOf(FromAdjacency(nil)),
+		"empty adjacency matrix: row 0 has no columns":           errOf(FromAdjacency([][]bool{{}})),
+		"ragged adjacency matrix: row 1 has 2 columns; want 1":   errOf(FromAdjacency([][]bool{{true}, {true, false}})),
+		"empty cost matrix":                                      errOf3(FromMatrix[int](nil)),
+		"empty cost matrix: row 0 has no columns":                errOf3(FromMatrix([][]int{{}})),
+		"cost matrix is not square: row 0 has 3 columns; want 2": errOf3(FromMatrix([][]int{{1, 2, 3}, {4, 5}})),
+	} {
+		if err == nil || err.Error() != want {
+			t.Errorf("got %v; want %q", err, want)
+		}
+	}
+}
+
 func TestEmptyInputs(t *testing.T) {
 	_, err1 := FromAdjacency([][]bool{})
 	_, err2 := FromAdjacency([][]bool{{}})
