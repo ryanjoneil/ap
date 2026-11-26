@@ -46,13 +46,13 @@ EOF
 
 ```json
 {
-  "assignment": [
+  "cost": 265,
+  "permutation": [
     3,
     2,
     1,
     0
-  ],
-  "cost": 265
+  ]
 }
 ```
 
@@ -78,7 +78,7 @@ p := a.Assign()     // p is an ap.Permutation
 ```
 
 Permutations can be converted to cyclic and matrix representations of
-assignments, and vice versa. All representations provide `Inverse` methods
+assignments, and vice versa. All representations provide `Inverse` methods that
 reverse the direction of assignment.
 
 ```go
@@ -90,7 +90,7 @@ p.Matrix()  // p[u] == v -> m[u][v] == true
 
 ### `ap/lsap`: linear sum assignment problem solver
 
-Package `ap/lsap` provides a efficient, iterative implementation of a
+Package `ap/lsap` provides an efficient, iterative implementation of a
 primal-dual linear sum assignment problem solver.
 
 ```bash
@@ -117,26 +117,30 @@ lsap -h
 ```
 
 ```text
-lsap solves linear sum assignment problems, given a square cost matrix
+lsap solves linear sum assignment problems, given a square cost matrix.
+
 Usage:
-        lsap < input.json -dual -rc > output.json
-        cat <<EOF | lsap | jq
-        [
-                [  90,  76,  75,  70 ],
-                [  35,  85,  55,  65 ],
-                [ 125,  95,  90, 105 ],
-                [  45, 110,  95, 115 ]
-        ]
-        EOF
+
+lsap < input.json -dual -rc > output.json
+
+cat <<EOF | lsap | jq
+[
+	[  90,  76,  75,  70 ],
+	[  35,  85,  55,  65 ],
+	[ 125,  95,  90, 105 ],
+	[  45, 110,  95, 115 ]
+]
+EOF
+
 Flags:
-        -cycles
-                output cyclic assignment form
-        -dual
-                output dual prices
-        -matrix
-                output matrix assignment form
-        -rc
-                output reduced cost matrix
+  -cycles
+    	output cyclic assignment form
+  -dual
+    	output dual prices
+  -matrix
+    	output matrix assignment form
+  -rc
+    	output reduced cost matrix
 ```
 
 [ap]:   https://en.wikipedia.org/wiki/Assignment_problem
