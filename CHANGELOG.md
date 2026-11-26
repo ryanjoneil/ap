@@ -1,5 +1,19 @@
 # ap: Change Log
 
+## v0.4.0
+
+* Fix LSAP solver returning suboptimal assignments for cost matrices with
+  negative values. Initialization compared a raw cost against a reduced cost
+  when breaking ties.
+* LSAP solver breaks ties by lowest column index, so it returns the same
+  assignment for the same input. Previously, map iteration order made results
+  vary between runs when there were multiple optimal assignments.
+* Add brute-force and regression tests for the LSAP solver.
+* Fix LSAP benchmarks, which only generated costs on the diagonal.
+* Update Go to v1.27.
+* Update GitHub Actions and golangci-lint to v2.
+* Fix README CLI output and usage examples.
+
 ## v0.3.0
 
 * LSAP solver auto-computes big-M. 
@@ -8,6 +22,7 @@
 * Update linting and GitHub Actions.
 * Assigners operate on generic signed `int` types. 
 * Remove `Int64*` interface prefixes.
+* `ap.Matrix` is a `[][]bool` again.
 * Improve docs and examples.
 
 ## v0.2.0

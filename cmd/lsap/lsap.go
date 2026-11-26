@@ -9,22 +9,26 @@ import (
 	"github.com/ryanjoneil/ap/lsap"
 )
 
+const usageText = `%[1]s solves linear sum assignment problems, given a square cost matrix.
+
+Usage:
+
+%[1]s < input.json -dual -rc > output.json
+
+cat <<EOF | %[1]s | jq
+[
+	[  90,  76,  75,  70 ],
+	[  35,  85,  55,  65 ],
+	[ 125,  95,  90, 105 ],
+	[  45, 110,  95, 115 ]
+]
+EOF
+
+Flags:
+`
+
 func usage() {
-	out := flag.CommandLine.Output()
-	msg := " solves linear sum assignment problems, given a square cost matrix."
-	fmt.Fprint(out, os.Args[0])
-	fmt.Fprintln(out, msg)
-	fmt.Fprint(out, "\nUsage:\n\n")
-	fmt.Fprintf(out, "%s < input.json -dual -rc > output.json\n\n", os.Args[0])
-	fmt.Fprintf(out, "cat <<EOF | %s | jq\n", os.Args[0])
-	fmt.Fprintf(out, "[\n")
-	fmt.Fprintf(out, "\t[  90,  76,  75,  70 ],\n")
-	fmt.Fprintf(out, "\t[  35,  85,  55,  65 ],\n")
-	fmt.Fprintf(out, "\t[ 125,  95,  90, 105 ],\n")
-	fmt.Fprintf(out, "\t[  45, 110,  95, 115 ]\n")
-	fmt.Fprintf(out, "]\n")
-	fmt.Fprintf(out, "EOF\n\n")
-	fmt.Fprintf(out, "Flags:\n")
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), usageText, os.Args[0])
 	flag.PrintDefaults()
 }
 

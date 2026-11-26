@@ -3,20 +3,16 @@ package lsap_test
 import (
 	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/ryanjoneil/ap/lsap"
 )
 
-func randomMatrix(n int) [][]int {
-	rng := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+func randomMatrix(rng *rand.Rand, n int) [][]int {
 	A := make([][]int, n)
 	for i := 0; i < n; i++ {
 		Ai := make([]int, n)
 		for j := 0; j < n; j++ {
-			if i == j {
-				Ai[j] = rng.Intn(100000)
-			}
+			Ai[j] = rng.Intn(100000)
 		}
 		A[i] = Ai
 	}
@@ -26,23 +22,24 @@ func randomMatrix(n int) [][]int {
 func benchSolve(b *testing.B, size int, removes int) {
 	b.Helper()
 
+	rng := rand.New(rand.NewSource(1))
 	matrices := [][][]int{}
 	for n := 0; n < b.N; n++ {
-		matrices = append(matrices, randomMatrix(size))
+		matrices = append(matrices, randomMatrix(rng, size))
 	}
 
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		ap := lsap.New(matrices[n])
-		assign := ap.Assign()
+		a := lsap.New(matrices[n])
+		assign := a.Assign()
 
 		// Incrementally remove assignments and re-optimize.
 		for i := 0; i < removes; i++ {
-			u := rand.Intn(size)
+			u := rng.Intn(size)
 			v := assign[u]
-			ap.Remove(u, v)
-			assign = ap.Assign()
+			a.Remove(u, v)
+			assign = a.Assign()
 		}
 	}
 }
@@ -50,17 +47,18 @@ func benchSolve(b *testing.B, size int, removes int) {
 func benchCopy(b *testing.B, size int, copies int) {
 	b.Helper()
 
+	rng := rand.New(rand.NewSource(1))
 	matrices := [][][]int{}
 	for n := 0; n < b.N; n++ {
-		matrices = append(matrices, randomMatrix(size))
+		matrices = append(matrices, randomMatrix(rng, size))
 	}
 
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		ap := lsap.New(matrices[n])
+		a := lsap.New(matrices[n])
 		for i := 0; i < copies; i++ {
-			ap.Copy()
+			a.Copy()
 		}
 	}
 }

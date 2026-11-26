@@ -52,6 +52,13 @@ func (a *LSAP[T]) M() T {
 // ReducedCost returns the reduced cost of an edge. If Assign is called prior,
 // then the reduced cost of a nonbasic (not in the optimal assignment) edge is
 // the additional cost introducing that edge would incur.
+//
+// For example, given some valid primal bound p, an edge (u,v) cannot be part
+// of an assignment better than p if:
+//
+//	if a.Cost() + a.ReducedCost(u, v) > p {
+//	    a.Remove(u, v)
+//	}
 func (a *LSAP[T]) ReducedCost(u, v int) T {
 	return a.a[u][v] - a.u[u] - a.v[v]
 }
@@ -62,12 +69,6 @@ func (a *LSAP[T]) ReducedCost(u, v int) T {
 // The solution algorithm provides an incremental primal-dual assignment problem
 // solver. The initial optimization runs in O(n^3) time, after which one can
 // remove edges from the resulting assignment and re-solve in O(n^2) time.
-//
-// For example, given some valid primal bound p:
-//
-//	if cost + rc > p {
-//	    // (0,1) cannot be in an optimal solution
-//	}
 func (a *LSAP[T]) Remove(i, j int) {
 	if a.f[i] == j {
 		a.f[i] = -1
