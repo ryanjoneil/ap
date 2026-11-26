@@ -31,4 +31,5 @@ For example:
 
 Each solver runs 3 times per instance and the median is reported. A run that
 exceeds 600 s is killed and reported as a timeout (`COMPARE_TIMEOUT` overrides
-the limit). Differing costs make the script exit non-zero.
+the limit). Differing costs, or an ap-lsap error or timeout, make the script
+exit non-zero; an external solver's error or timeout is only reported.

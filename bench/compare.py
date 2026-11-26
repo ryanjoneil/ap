@@ -5,8 +5,11 @@ Usage: bench/.venv/bin/python bench/compare.py instance.json [...]
 
 Each external solver runs 3 times per instance, each run in a forked child so
 a run can be killed after TIMEOUT seconds (default 600). Only the solve call is
-timed (time.perf_counter); arrays/arcs are built before the timer starts.
-Costs of all solvers must agree, otherwise the script exits non-zero.
+timed (time.perf_counter); arrays/arcs are built before the timer starts, and
+SciPy's assigned costs are summed after it stops. Costs of all solvers must
+agree, and ap-lsap must not fail or time out, otherwise the script exits
+non-zero. An external solver's error or timeout is recorded in the table but
+is not fatal.
 """
 import json
 import multiprocessing as mp
@@ -25,7 +28,7 @@ from scipy.sparse.csgraph import min_weight_full_bipartite_matching
 RUNS = 3
 TIMEOUT = float(os.environ.get("COMPARE_TIMEOUT", "600"))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TIMEOUT_CELL = "timeout (>600 s)"
+TIMEOUT_CELL = f"timeout (>{TIMEOUT:g} s)"
 
 
 def load(path):
@@ -40,16 +43,20 @@ def load(path):
     return data["n"], edges[:, 0], edges[:, 1], edges[:, 2], None
 
 
-# Each prepare function builds solver inputs (untimed) and returns a thunk
-# that does the timed solve and returns the total cost.
+# Each prepare function builds solver inputs (untimed) and returns a pair
+# (solve, total): solve is the timed thunk, and total turns its result into the
+# total cost after the timer stops.
 def prep_scipy_dense(inst):
     n, _, _, _, m = inst
 
     def solve():
-        r, c = linear_sum_assignment(m)
+        return linear_sum_assignment(m)
+
+    def total(rc):
+        r, c = rc
         return int(m[r, c].sum())
 
-    return solve
+    return solve, total
 
 
 def prep_scipy_sparse(inst):
@@ -61,10 +68,13 @@ def prep_scipy_sparse(inst):
     g = csr_matrix((c + 1, (u, v)), shape=(n, n))
 
     def solve():
-        r, cc = min_weight_full_bipartite_matching(g)
+        return min_weight_full_bipartite_matching(g)
+
+    def total(rc):
+        r, cc = rc
         return int(g[r, cc].sum()) - n
 
-    return solve
+    return solve, total
 
 
 def prep_ortools(inst):
@@ -81,23 +91,26 @@ def prep_ortools(inst):
             raise RuntimeError(f"ortools status {st}")
         return int(a.optimal_cost())
 
-    return solve
+    # Reading the optimal cost is O(1) and stays inside the timer.
+    return solve, lambda cost: cost
 
 
-def child(solve, conn):
+def child(solver, conn):
+    solve, total = solver
     try:
         t0 = time.perf_counter()
-        cost = solve()
-        conn.send(("ok", time.perf_counter() - t0, cost))
+        res = solve()
+        elapsed = time.perf_counter() - t0
+        conn.send(("ok", elapsed, total(res)))
     except Exception as e:  # recorded in the table, not fatal
         conn.send(("err", 0.0, f"{type(e).__name__}: {e}"))
     conn.close()
 
 
-def run_once(solve):
+def run_once(solver):
     ctx = mp.get_context("fork")
     parent, kid = ctx.Pipe(duplex=False)
-    p = ctx.Process(target=child, args=(solve, kid))
+    p = ctx.Process(target=child, args=(solver, kid))
     p.start()
     kid.close()
     if parent.poll(TIMEOUT):
@@ -109,11 +122,11 @@ def run_once(solve):
     return res
 
 
-def measure(solve):
+def measure(solver):
     """Return (cell text, cost or None, failure or None)."""
     times, cost = [], None
     for _ in range(RUNS):
-        st, t, x = run_once(solve)
+        st, t, x = run_once(solver)
         if st == "timeout":
             return TIMEOUT_CELL, None, None
         if st == "err":
@@ -126,6 +139,8 @@ def measure(solve):
 
 
 def ap_lsap(path):
+    """Return (cell text, cost or None, failure or None). Unlike an external
+    solver, an ap-lsap error or timeout is a failure."""
     times, cost = [], None
     for _ in range(RUNS):
         try:
@@ -134,13 +149,14 @@ def ap_lsap(path):
                 capture_output=True, text=True, timeout=TIMEOUT, check=True,
             ).stdout
         except subprocess.TimeoutExpired:
-            return TIMEOUT_CELL, None
+            return TIMEOUT_CELL, None, f"ap-lsap timed out after {TIMEOUT:g} s"
         except subprocess.CalledProcessError as e:
-            return "error: " + e.stderr.strip(), None
+            msg = e.stderr.strip()
+            return "error: " + msg, None, f"ap-lsap failed: {msg}"
         r = json.loads(out)
         times.append(r["seconds"])
         cost = r["cost"]
-    return f"{statistics.median(times):.3f}", cost
+    return f"{statistics.median(times):.3f}", cost, None
 
 
 def main(paths):
@@ -154,7 +170,9 @@ def main(paths):
         edges = n * n if dense else len(u)
         name = os.path.basename(path)
         cells, costs = {}, {}
-        cells["ap"], costs["ap"] = ap_lsap(path)
+        cells["ap"], costs["ap"], fail = ap_lsap(path)
+        if fail:
+            failures.append(f"{name}: {fail}")
         solvers = [("scipy dense", prep_scipy_dense if dense else None),
                    ("scipy sparse", prep_scipy_sparse),
                    ("ortools", prep_ortools)]
