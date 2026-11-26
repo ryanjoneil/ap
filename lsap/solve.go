@@ -1,9 +1,9 @@
 package lsap
 
-import "github.com/ryanjoneil/ap"
-
-// solve updates A, U, V, and Z to the optimal LSAP solution.
-func (a *LSAP[T]) solve() {
+// solve updates A, U, V, and Z to the optimal LSAP solution. It is the main
+// loop of Hungarian_3 (book §4.2.2, Algorithm 4.5) as coded in APC by
+// Carpaneto, Martello, and Toth (1988).
+func (a *dense[T]) solve() {
 	for i := 0; i < a.n; i++ {
 		if a.f[i] < 0 {
 			j := a.path(i)
@@ -19,13 +19,17 @@ func (a *LSAP[T]) solve() {
 	}
 }
 
-func (a *LSAP[T]) path(i int) int {
+// path grows an alternating tree from the unassigned row i, updating the dual
+// prices, until it reaches an unassigned column, which it returns. It is
+// Procedure Augment(k) (book §4.2.2, Algorithm 4.4). Where the book picks any
+// labelled, unscanned column, path picks the one with the lowest index.
+func (a *dense[T]) path(i int) int {
 	lr := []int{i}          // Vector of labelled rows
 	uc := make([]bool, a.n) // uc[j] = true if column j is unlabelled
 
 	for j := 0; j < a.n; j++ {
 		uc[j] = true
-		a.pi[j] = ap.MaxOf[T]()
+		a.pi[j] = a.maxT
 	}
 
 	for {
@@ -97,7 +101,9 @@ func (a *LSAP[T]) path(i int) int {
 	}
 }
 
-func (a *LSAP[T]) increase(i, j int) {
+// increase augments the assignment along the path from row i to column j
+// found by path (the repeat loop of book Algorithm 4.5).
+func (a *dense[T]) increase(i, j int) {
 	for {
 		l := a.c[j]
 		a.fBar[j] = l
