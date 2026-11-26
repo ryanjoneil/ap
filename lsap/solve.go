@@ -4,7 +4,7 @@ package lsap
 // loop of Hungarian_3 (book §4.2.2, Algorithm 4.5) as coded in APC by
 // Carpaneto, Martello, and Toth (1988). It stops early if path sets
 // a.overflow. As a departure from APC, it doesn't compute the objective value;
-// assign does that with checked additions.
+// assign does that without overflow.
 func (a *dense[T]) solve() {
 	for i := 0; i < a.n; i++ {
 		if a.f[i] < 0 {

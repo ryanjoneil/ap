@@ -26,7 +26,8 @@ import (
 // cannot overflow T. initialize checks each dual price it sets, path checks
 // each dual update, and assign rechecks all of them against the current b.
 // A dual price outside b sets the sticky overflow flag, and assign returns
-// ap.ErrOverflow. The objective value is summed with checked additions.
+// ap.ErrOverflow. assign sums the objective value with checked additions,
+// unless n·a0 fits in T, when no partial sum can overflow.
 type dense[T ap.Integer] struct {
 	m    T   // Cost of a removed edge; every real cost is below m
 	maxT T   // Largest value of T, cached for path
@@ -190,7 +191,8 @@ func bigM[T ap.Integer](n int, minC, maxC T) (T, bool) {
 }
 
 // assign rechecks the dual prices against the current margin, solves, and
-// sums the cost of the assignment with checked additions.
+// sums the cost of the assignment, with checked additions unless n·a0 fits in
+// T.
 func (a *dense[T]) assign() (ap.Permutation, error) {
 	if !a.overflow {
 		a.b = a.margin()

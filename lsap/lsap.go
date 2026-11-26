@@ -52,10 +52,11 @@ type kernel[T ap.Integer] interface {
 // 1001·2145339 + 1 > 2³¹−1.
 //
 // Passing New doesn't mean that solving fits in T. Assign returns
-// [ap.ErrOverflow] if it would overflow T, which can happen for costs above
-// about a third of the largest value of T, or once removed edges bring M into
-// the costs. Use a wider T in that case. To keep a solver to fall back on,
-// call Copy before Assign or Remove.
+// [ap.ErrOverflow] if it would overflow T. That happens most often for costs
+// above about a third of the largest value of T, or once removed edges bring
+// M into the costs, but the dual prices can exceed the costs, so it can
+// happen for smaller costs too. Use a wider T in that case. To keep a solver
+// to fall back on, call Copy before Assign or Remove.
 func New[T ap.Integer](costs [][]T) (*LSAP[T], error) {
 	n := len(costs)
 	if n == 0 {
@@ -89,9 +90,11 @@ func New[T ap.Integer](costs [][]T) (*LSAP[T], error) {
 // or if a cost is the smallest or largest value of T.
 //
 // Passing NewSparse doesn't mean that solving fits in T. Assign returns
-// [ap.ErrOverflow] if it would overflow T, which can happen for costs above
-// about a fifth of the largest value of T. Use a wider T in that case. To
-// keep a solver to fall back on, call Copy before Assign or Remove.
+// [ap.ErrOverflow] if it would overflow T. That happens most often for costs
+// above about a fifth of the largest value of T, but the dual prices can
+// exceed the costs, so it can happen for smaller costs too. Use a wider T in
+// that case. To keep a solver to fall back on, call Copy before Assign or
+// Remove.
 func NewSparse[T ap.Integer](n int, edges []ap.Edge[T]) (*LSAP[T], error) {
 	s, err := newSparse(n, edges)
 	if err != nil {
@@ -105,9 +108,10 @@ func NewSparse[T ap.Integer](n int, edges []ap.Edge[T]) (*LSAP[T], error) {
 // assignment. A removed or missing edge never appears in the returned
 // assignment.
 //
-// Assign returns [ap.ErrOverflow] if solving would overflow T; see [New].
-// Once it does, every later call to Assign on the solver, or on a copy made
-// from it afterwards, returns ap.ErrOverflow too. If removed edges leave no feasible assignment
+// Assign returns [ap.ErrOverflow] if solving would overflow T; see [New] and
+// [NewSparse]. Once it does, every later call to Assign on the solver, or on
+// a copy made from it afterwards, returns ap.ErrOverflow too. If removed
+// edges, or edges missing from a sparse solver, leave no feasible assignment,
 // and proving that would overflow T, Assign may return ap.ErrOverflow instead
 // of ap.ErrInfeasible.
 func (a *LSAP[T]) Assign() (ap.Permutation, error) {

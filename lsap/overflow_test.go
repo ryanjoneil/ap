@@ -3,6 +3,7 @@ package lsap_test
 import (
 	"errors"
 	"math/rand/v2"
+	"slices"
 	"testing"
 
 	"github.com/ryanjoneil/ap"
@@ -66,23 +67,43 @@ func TestDenseMarginInt8(t *testing.T) {
 }
 
 // Each of these passes New, then Assign returns ErrOverflow from a different
-// check.
+// check. Where there are removals, Assign must succeed before each one, and
+// return ErrOverflow after the last.
 func TestDenseOverflowInt8(t *testing.T) {
-	for name, c := range map[string][][]int8{
+	for name, tc := range map[string]struct {
+		c       [][]int8
+		removes [][2]int
+	}{
 		// A = 127 leaves no margin at all.
-		"no margin": {{-127}},
+		"no margin": {[][]int8{{-127}}, nil},
 		// A = 42 and B = 42. Phase 1 sets v = [−42, −42], and phase 2 sets
 		// u[1] = 1 + 42 = 43 > B.
-		"phase 2": {{-42, -42}, {1, 1}},
+		"phase 2": {[][]int8{{-42, -42}, {1, 1}}, nil},
+		// A = 31 and B = 47. Initializing gives u = [0, 0, 3] and
+		// v = [−28, −31, −27], and assigns rows 0 and 1. The search from
+		// row 2 labels column 1, then raises u[2] and u[1] by 20 and would
+		// lower v[1] to −31 − 20 = −51 < −B.
+		"path v[j]": {[][]int8{{-28, 4, -27}, {-8, -31, 7}, {4, -28, 4}}, nil},
+		// A = 15, B = 55 and M = 73. Removing (0, 1) brings A to 73 and B to
+		// 26, and re-solving gives u = [5, 17], v = [−20, −3] and the
+		// diagonal. After removing (0, 0), the search from row 0 would raise
+		// u[0] by 71 to 76 > B.
+		"path u[h]": {[][]int8{{-15, -3}, {-3, 14}}, [][2]int{{0, 1}, {0, 0}}},
 		// A = 40 and B = 43, so the duals fit, but the cost 160 doesn't.
-		"cost": {{40, 40, 40, 40}, {40, 40, 40, 40}, {40, 40, 40, 40}, {40, 40, 40, 40}},
+		"cost": {[][]int8{{40, 40, 40, 40}, {40, 40, 40, 40}, {40, 40, 40, 40}, {40, 40, 40, 40}}, nil},
 	} {
-		a, err := lsap.New(c)
+		a, err := lsap.New(tc.c)
 		if err != nil {
 			t.Fatalf("%s: New: %v", name, err)
 		}
+		for _, r := range tc.removes {
+			if p, err := a.Assign(); err != nil {
+				t.Fatalf("%s: Assign before Remove(%v, %v) = (%v, %v)", name, r[0], r[1], p, err)
+			}
+			a.Remove(r[0], r[1])
+		}
 		if p, err := a.Assign(); !errors.Is(err, ap.ErrOverflow) {
-			t.Errorf("%s: Assign = (%v, %v); want ErrOverflow", name, p, err)
+			t.Errorf("%s: Assign = (%v, %v), cost %v; want ErrOverflow", name, p, err, a.Cost())
 		}
 	}
 }
@@ -147,8 +168,8 @@ func TestSparseMarginInt8(t *testing.T) {
 	}
 }
 
-// The largest accepted cost leaves no margin, and its column is not mistaken
-// for an empty one.
+// NewSparse accepts the largest cost below the largest value of T, 126. Then
+// B = 0, so v[0] = 126 is outside the margin, and Assign returns ErrOverflow.
 func TestSparseMaxCostInt8(t *testing.T) {
 	a, err := lsap.NewSparse(1, []ap.Edge[int8]{{U: 0, V: 0, Cost: 126}})
 	if err != nil {
@@ -156,6 +177,24 @@ func TestSparseMaxCostInt8(t *testing.T) {
 	}
 	if p, err := a.Assign(); !errors.Is(err, ap.ErrOverflow) {
 		t.Errorf("Assign(126) = (%v, %v); want ErrOverflow", p, err)
+	}
+}
+
+// A row or column with no edges makes Assign return ErrInfeasible, even when
+// the margin check would fail too. Here A = 100 and B = 6, and column
+// reduction would set v[0] = 100 > B.
+func TestSparseInfeasibleBeforeOverflowInt8(t *testing.T) {
+	for name, edges := range map[string][]ap.Edge[int8]{
+		"empty column": {{U: 0, V: 0, Cost: 100}, {U: 1, V: 0, Cost: 100}},
+		"empty row":    {{U: 0, V: 0, Cost: 100}, {U: 0, V: 1, Cost: 100}},
+	} {
+		a, err := lsap.NewSparse(2, edges)
+		if err != nil {
+			t.Fatalf("%s: NewSparse: %v", name, err)
+		}
+		if p, err := a.Assign(); !errors.Is(err, ap.ErrInfeasible) {
+			t.Errorf("%s: Assign = (%v, %v); want ErrInfeasible", name, p, err)
+		}
 	}
 }
 
@@ -241,6 +280,36 @@ func TestSparseOverflowInt8(t *testing.T) {
 	}
 }
 
+// The cost sum doesn't fail when a partial sum leaves T but the total fits.
+// Here every |u[i]|, |v[j]| ≤ 23 < B = 25, and the optimal cost −122 fits in
+// int8, but the partial sums in row order reach −132 before the last row
+// adds 10.
+func TestSparsePartialSumInt8(t *testing.T) {
+	edges := []ap.Edge[int64]{
+		{U: 0, V: 0, Cost: 11}, {U: 0, V: 1, Cost: 20}, {U: 0, V: 3, Cost: -22},
+		{U: 0, V: 5, Cost: -8}, {U: 0, V: 7, Cost: 15},
+		{U: 1, V: 1, Cost: -19}, {U: 1, V: 2, Cost: 20}, {U: 1, V: 3, Cost: 17},
+		{U: 1, V: 6, Cost: 18}, {U: 1, V: 7, Cost: -14},
+		{U: 2, V: 0, Cost: -23}, {U: 2, V: 1, Cost: -11}, {U: 2, V: 2, Cost: -6},
+		{U: 2, V: 3, Cost: 2}, {U: 2, V: 4, Cost: -3}, {U: 2, V: 6, Cost: 18},
+		{U: 3, V: 0, Cost: -20}, {U: 3, V: 2, Cost: -17}, {U: 3, V: 3, Cost: 4},
+		{U: 3, V: 4, Cost: -4},
+		{U: 4, V: 0, Cost: 18}, {U: 4, V: 1, Cost: -21}, {U: 4, V: 3, Cost: 7},
+		{U: 4, V: 4, Cost: -4}, {U: 4, V: 5, Cost: -13},
+		{U: 5, V: 0, Cost: -20}, {U: 5, V: 1, Cost: -21}, {U: 5, V: 2, Cost: -2},
+		{U: 5, V: 3, Cost: 5}, {U: 5, V: 5, Cost: 23},
+		{U: 6, V: 0, Cost: -17}, {U: 6, V: 3, Cost: -9}, {U: 6, V: 4, Cost: -22},
+		{U: 6, V: 6, Cost: 21},
+		{U: 7, V: 4, Cost: 21}, {U: 7, V: 5, Cost: -14}, {U: 7, V: 6, Cost: 10},
+		{U: 7, V: 7, Cost: 23},
+	}
+	got := checkSameCost(t, func() (*lsap.LSAP[int64], error) { return lsap.NewSparse(8, edges) },
+		func() (*lsap.LSAP[int8], error) { return lsap.NewSparse(8, toEdgesT[int8](edges)) })
+	if got != -122 {
+		t.Errorf("cost %v; want −122", got)
+	}
+}
+
 func TestSparseNeverWrongInt8(t *testing.T) {
 	rng := rand.New(rand.NewPCG(3, 4))
 	checkNeverWrong[int8](t, buildSparse[int8](rng), sparseWantErr[int8])
@@ -256,7 +325,10 @@ func TestSparseNeverWrongInt16(t *testing.T) {
 // trial builds a solver with build, then alternately removes an assigned edge
 // and a random edge, solving after each removal, until brute force (in int64)
 // says the problem is infeasible. Every Assign must either return
-// ap.ErrOverflow, which ends the trial, or agree with brute force.
+// ap.ErrOverflow, which ends the trial, or agree with brute force. A copy of
+// a solved solver must report the same cost. Every third step goes on solving
+// through a copy made after the removal, which must give the same result as
+// the solver it was copied from.
 //
 // checkNeverWrong passes build an all-true mask, and build sets mask[i][j] to
 // false for each edge (i, j) it leaves out of the solver. wantErr reports
@@ -299,6 +371,7 @@ func checkNeverWrong[T ap.Integer](
 			continue
 		}
 
+		var orig *lsap.LSAP[T] // The solver a was copied from, if any
 		for step := 0; ; step++ {
 			// Every other step removes an assigned edge, so a correct solver
 			// becomes infeasible within 2n² steps.
@@ -307,6 +380,15 @@ func checkNeverWrong[T ap.Integer](
 			}
 			want, feasible := bruteforce.MinSum(c, mask)
 			p, err := a.Assign()
+			if orig != nil {
+				// The copy solves exactly as the solver it was copied from.
+				op, oerr := orig.Assign()
+				if !errors.Is(err, oerr) || !slices.Equal(op, p) || (err == nil && orig.Cost() != a.Cost()) {
+					t.Fatalf("%v mask %v: copy got (%v, %v), cost %v; original got (%v, %v), cost %v",
+						c, mask, p, err, a.Cost(), op, oerr, orig.Cost())
+				}
+				orig = nil
+			}
 			if errors.Is(err, ap.ErrOverflow) {
 				overflowed++
 				// The overflow is sticky, and carried by Copy.
@@ -339,6 +421,9 @@ func checkNeverWrong[T ap.Integer](
 					t.Fatalf("%v mask %v: %v uses removed edge (%v, %v)", c, mask, p, u, v)
 				}
 			}
+			if got := int64(a.Copy().Cost()); got != want {
+				t.Fatalf("%v mask %v: Copy().Cost() = %v; want %v", c, mask, got, want)
+			}
 
 			u := rng.IntN(n)
 			v := p[u]
@@ -347,6 +432,11 @@ func checkNeverWrong[T ap.Integer](
 			}
 			mask[u][v] = false
 			a.Remove(u, v)
+			// Every third step, solve on through a copy, which must carry
+			// the removals.
+			if step%3 == 2 {
+				orig, a = a, a.Copy()
+			}
 		}
 	}
 
@@ -401,13 +491,13 @@ func TestNoFalseAlarmsInt32(t *testing.T) {
 	}
 }
 
-// checkSameCost builds and solves a problem in int64 and in int32, and checks that
-// both solve with the same cost.
-func checkSameCost(
+// checkSameCost builds and solves a problem in int64 and in T, checks that
+// both solve with the same cost, and returns it.
+func checkSameCost[T ap.Integer](
 	t *testing.T,
 	build64 func() (*lsap.LSAP[int64], error),
-	build32 func() (*lsap.LSAP[int32], error),
-) {
+	buildT func() (*lsap.LSAP[T], error),
+) int64 {
 	t.Helper()
 
 	a64, err := build64()
@@ -418,14 +508,15 @@ func checkSameCost(
 		t.Fatalf("Assign int64: %v", err)
 	}
 
-	a32, err := build32()
+	aT, err := buildT()
 	if err != nil {
-		t.Fatalf("build int32: %v", err)
+		t.Fatalf("build %T: %v", T(0), err)
 	}
-	if _, err := a32.Assign(); err != nil {
-		t.Fatalf("Assign int32: %v", err)
+	if _, err := aT.Assign(); err != nil {
+		t.Fatalf("Assign %T: %v", T(0), err)
 	}
-	if got, want := int64(a32.Cost()), a64.Cost(); got != want {
-		t.Errorf("int32 cost %v; int64 cost %v", got, want)
+	if got, want := int64(aT.Cost()), a64.Cost(); got != want {
+		t.Errorf("%T cost %v; int64 cost %v", T(0), got, want)
 	}
+	return a64.Cost()
 }

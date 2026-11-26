@@ -222,7 +222,9 @@ Constructors return descriptive errors, never panic, for:
 - a sparse edge with an endpoint out of range;
 - a duplicate sparse edge (same `U, V`);
 - costs that can't be represented in `T`. Each constructor documents its
-  exact rule and tests it at the boundary. `Assign` returns `ap.ErrOverflow`
+  exact rule and tests it at the boundary. One exception: `lsap.NewSparse`
+  also rejects a cost equal to `T`'s maximum, which is representable but is
+  the value its search uses to mark an unlabelled column. `Assign` returns `ap.ErrOverflow`
   when the solve would overflow `T`.
 
 ### Internal packages (`internal/`)

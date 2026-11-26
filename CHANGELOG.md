@@ -2,6 +2,11 @@
 
 ## v0.6.0 (unreleased)
 
+New:
+
+* #34: `ap.ErrOverflow` is the error `lsap`'s `Assign` returns when solving
+  would overflow `T`.
+
 Changed:
 
 * #34: `lsap` detects overflow while solving instead of ruling it out up
@@ -9,10 +14,12 @@ Changed:
   M = n·(maxC − minC) + maxC + 1 that overflows or equals `T`'s maximum. For
   example, with `int32` and n = 1000, costs in [0, 2,145,338] are accepted
   (v0.5 accepted [0, 535]). `lsap.NewSparse` rejects only costs equal to `T`'s
-  minimum or maximum. `Assign` returns the new `ap.ErrOverflow` when the solve
-  would overflow `T`, which can happen for costs above about a third (dense) or
-  a fifth (sparse) of `T`'s largest value. The `lsap` CLI reports it as
-  "use a smaller -scale or smaller costs".
+  minimum or maximum. `Assign` returns `ap.ErrOverflow` when the solve would
+  overflow `T`. That happens most often for costs above about a third (dense)
+  or a fifth (sparse) of `T`'s largest value, or once removed edges bring M
+  into the dense costs, but the dual prices can exceed the costs, so it can
+  happen for smaller costs too. The `lsap` CLI reports it as "use a smaller
+  -scale or smaller costs".
 
 ## v0.5.0
 

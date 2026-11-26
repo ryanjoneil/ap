@@ -47,9 +47,10 @@ import (
 //     label above the cap l, so that the unchecked labels and reduced costs
 //     cannot overflow T (see margin). initialize checks each dual price it
 //     sets, augment checks each popped label against l and each dual update
-//     against b, and assign sums the objective value with checked additions
-//     unless n·A fits in T. A failed check sets the sticky overflow flag, and
-//     assign returns ap.ErrOverflow.
+//     against b. assign sums the objective value with unchecked additions if
+//     n·A fits in T, and otherwise counts the carries of wrapping additions,
+//     failing only if the total doesn't fit (see assign). A failed check sets
+//     the sticky overflow flag, and assign returns ap.ErrOverflow.
 type sparse[T ap.Integer] struct {
 	maxT T   // Largest value of T, cached for the search
 	n    int // n of assignment problem
@@ -149,10 +150,13 @@ func newSparse[T ap.Integer](n int, edges []ap.Edge[T]) (*sparse[T], error) {
 // [−(A+2b), maxT − 1]. So no intermediate overflows, and every label is at
 // most maxT − 1, below the maxT that marks an unlabelled column.
 //
-// The cap costs no false alarms. The search scans labels in nondecreasing
-// order and ends with δ, the sink's label, so if it scans a label above
-// l ≥ 2b, then either it finds no sink or δ > 2b. In the second case
-// u[s] + δ > b, since u[s] ≥ −b, and the dual update would fail anyway.
+// The cap costs no false alarms when a sink is reachable. The search scans
+// labels in nondecreasing order and ends with δ, the sink's label, so if it
+// scans a label above l ≥ 2b, then either it finds no sink or δ > 2b. In the
+// second case u[s] + δ > b, since u[s] ≥ −b, and the dual update would fail
+// anyway. In the first case the true answer is that no augmenting path
+// exists, and the search reports overflow instead, so removed or missing
+// edges can turn ap.ErrInfeasible into ap.ErrOverflow.
 //
 // The dual prices change only in initialize, which checks each one against b
 // before using it, and in the dual update, which raises u[s] by δ and, for
@@ -245,7 +249,15 @@ func (a *sparse[T]) initialize() {
 
 // assign solves and sums the cost of the assignment. Every partial sum has at
 // most n terms, each of magnitude at most A, so if n·A fits in T, no partial
-// sum overflows, and the additions go unchecked. Otherwise they are checked.
+// sum overflows, and the additions go unchecked.
+//
+// Otherwise a partial sum can leave T even when the total fits, since the
+// costs can have either sign, so assign adds with intmath.AddWrap and counts
+// the carries. By induction on the terms, the exact partial sum is always
+// z + carry·2^w, where w is the width of T. Then the exact total lies in T,
+// and equals z, exactly when carry = 0: if carry ≥ 1, the total is at least
+// minT + 2^w = maxT + 1, and if carry ≤ −1, at most maxT − 2^w = minT − 1.
+// |carry| ≤ n, so carry can't overflow.
 func (a *sparse[T]) assign() (ap.Permutation, error) {
 	if a.infeasible {
 		return nil, ap.ErrInfeasible
@@ -272,17 +284,20 @@ func (a *sparse[T]) assign() (ap.Permutation, error) {
 	}
 
 	var z T
+	carry := 0
 	for _, e := range a.rowEdge {
 		ce := a.c[e]
 		if a.sumFits {
 			z += ce
 			continue
 		}
-		var ok bool
-		if z, ok = intmath.Add(z, ce); !ok {
-			a.overflow = true
-			return nil, ap.ErrOverflow
-		}
+		var k int
+		z, k = intmath.AddWrap(z, ce)
+		carry += k
+	}
+	if carry != 0 {
+		a.overflow = true
+		return nil, ap.ErrOverflow
 	}
 	a.z = z
 
@@ -423,7 +438,7 @@ func (a *sparse[T]) updateDuals(s int, delta T, scanned []int) bool {
 	return true
 }
 
-// cost returns the objective value, which assign sums with checked additions.
+// cost returns the objective value, which assign sums without overflow.
 func (a *sparse[T]) cost() T {
 	return a.z
 }

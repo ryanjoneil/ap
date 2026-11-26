@@ -44,18 +44,19 @@ func TestChecked(t *testing.T) {
 	}
 }
 
-func TestFitsScaled(t *testing.T) {
+func TestAddWrap(t *testing.T) {
 	cases := []struct {
-		k    int
-		c    int8
-		want bool
+		a, b  int8
+		sum   int8
+		carry int
 	}{
-		{1, 127, true}, {2, 63, true}, {2, 64, false}, {2, -63, true},
-		{1, -128, false}, {0, 1, false}, {-1, 1, false}, {1000, 0, true},
+		{100, 27, 127, 0}, {100, 28, -128, 1}, {127, 127, -2, 1},
+		{-100, -28, -128, 0}, {-100, -29, 127, -1}, {-128, -128, 0, -1},
+		{-128, 127, -1, 0}, {5, 0, 5, 0}, {0, -128, -128, 0},
 	}
 	for _, c := range cases {
-		if got := FitsScaled(c.k, c.c); got != c.want {
-			t.Errorf("FitsScaled(%d, %d) = %v", c.k, c.c, got)
+		if sum, carry := AddWrap(c.a, c.b); sum != c.sum || carry != c.carry {
+			t.Errorf("AddWrap(%d, %d) = (%d, %d); want (%d, %d)", c.a, c.b, sum, carry, c.sum, c.carry)
 		}
 	}
 }

@@ -115,9 +115,15 @@ func TestNewErrors(t *testing.T) {
 	if _, err := lsap.New([][]int8{{0, 42}, {0, 0}}); err == nil {
 		t.Error("int8, M = 127: want error")
 	}
-	// |−128| is not representable in int8.
+	// |−128| is not representable in int8. Here M = 2·(0 + 128) + 0 + 1
+	// overflows too.
 	if _, err := lsap.New([][]int8{{-128, 0}, {0, 0}}); err == nil {
 		t.Error("int8, cost −128: want error")
+	}
+	// Here M = 2·(−44 + 128) − 44 + 1 = 125 fits, so only the cost −128
+	// rejects the matrix.
+	if _, err := lsap.New([][]int8{{-128, -44}, {-44, -44}}); err == nil {
+		t.Error("int8, cost −128, M = 125: want error")
 	}
 }
 

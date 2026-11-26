@@ -6,7 +6,10 @@ package lsap
 //
 // As a departure from the source, it checks each dual price against the
 // margin a.b (see margin) as it sets it, before the price is used. If one is
-// outside the margin, initialize sets a.overflow and stops.
+// outside the margin, initialize sets a.overflow and stops. These checks are
+// redundant, since assign rechecks every dual price before solving, and a
+// price outside the margin stays in u or v. They stop initialize early, so
+// that it does no arithmetic with a price outside the margin.
 func (a *dense[T]) initialize() {
 	if a.initializePhase1() {
 		a.initializePhase2()
