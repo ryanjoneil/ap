@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/ryanjoneil/ap"
 )
@@ -51,7 +52,9 @@ type sparsePairs struct {
 
 // ReadCosts reads one JSON cost matrix from r: a top-level array is dense, a
 // top-level object {"n": N, "edges": [[u, v, cost], ...]} is sparse. If scale
-// is 0, costs must be integers; otherwise each cost becomes
+// is 0, costs must be integers: either integer literals in int64 range, or
+// literals with a fraction or exponent, such as 5.0 or 1e3, whose value is an
+// integer of magnitude at most 2^53. Otherwise each cost becomes
 // math.Round(cost*scale). Scale must not be negative, NaN or infinite.
 func ReadCosts(r io.Reader, scale float64) (Costs, error) {
 	if math.IsNaN(scale) || math.IsInf(scale, 0) || scale < 0 {
@@ -224,10 +227,17 @@ func cost(s number, scale float64) (int64, error) {
 		if errors.Is(err, strconv.ErrRange) {
 			return 0, fmt.Errorf("cost %s is out of int64 range", string(s))
 		}
-		if _, ferr := strconv.ParseFloat(string(s), 64); ferr == nil {
-			return 0, fmt.Errorf("cost %s is not an integer: use -scale to accept non-integer costs", string(s))
+		if _, ferr := strconv.ParseFloat(string(s), 64); ferr != nil && !errors.Is(ferr, strconv.ErrRange) {
+			return 0, fmt.Errorf("invalid cost %s", string(s))
 		}
-		return 0, fmt.Errorf("invalid cost %s", string(s))
+		// A fraction or exponent, as in 5.0 or 1e3.
+		switch v, integral, ok := integerLiteral(string(s)); {
+		case ok:
+			return v, nil
+		case integral:
+			return 0, fmt.Errorf("cost %s is out of range: a cost with a fraction or exponent must be at most 2^53 in magnitude", string(s))
+		}
+		return 0, fmt.Errorf("cost %s is not an integer: use -scale to accept non-integer costs", string(s))
 	}
 	f, err := strconv.ParseFloat(string(s), 64)
 	if err != nil {
@@ -239,4 +249,55 @@ func cost(s number, scale float64) (int64, error) {
 		return 0, fmt.Errorf("cost %s scaled by %v is out of int64 range", string(s), scale)
 	}
 	return int64(x), nil
+}
+
+// integerLiteral decides from its decimal digits whether the JSON number
+// literal s, which may have a fraction or exponent, is an integer. It works
+// on the text rather than on a float64, which would round a literal such as
+// 1.0000000000000000001 to an integer. It returns the integer's value and
+// ok = true if |value| ≤ 2^53, and integral = true for any integer.
+func integerLiteral(s string) (v int64, integral, ok bool) {
+	neg := strings.HasPrefix(s, "-")
+	mant, exp := strings.TrimPrefix(s, "-"), 0
+	if i := strings.IndexAny(mant, "eE"); i >= 0 {
+		e, err := strconv.Atoi(mant[i+1:])
+		switch {
+		case err == nil:
+			exp = e
+		case strings.HasPrefix(mant[i+1:], "-"):
+			exp = -(1 << 30) // Too small for any digits to make an integer.
+		default:
+			exp = 1 << 30 // Too large for any nonzero digits to fit.
+		}
+		mant = mant[:i]
+	}
+	digits := mant
+	if i := strings.IndexByte(mant, '.'); i >= 0 {
+		digits = mant[:i] + mant[i+1:]
+		exp -= len(mant) - i - 1
+	}
+
+	// The value is digits·10^exp. Drop leading and trailing zeros.
+	digits = strings.TrimLeft(digits, "0")
+	if digits == "" {
+		return 0, true, true
+	}
+	trimmed := strings.TrimRight(digits, "0")
+	exp += len(digits) - len(trimmed)
+	digits = trimmed
+
+	switch {
+	case exp < 0:
+		return 0, false, false
+	case len(digits)+exp > 16: // At least 10^16 > 2^53.
+		return 0, true, false
+	}
+	v, err := strconv.ParseInt(digits+strings.Repeat("0", exp), 10, 64)
+	if err != nil || v > 1<<53 {
+		return 0, true, false
+	}
+	if neg {
+		v = -v
+	}
+	return v, true, true
 }

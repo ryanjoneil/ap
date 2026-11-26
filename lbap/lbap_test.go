@@ -283,7 +283,7 @@ func TestNewErrors(t *testing.T) {
 	for _, c := range cases {
 		err := c.f()
 		if err == nil || !strings.HasPrefix(err.Error(), "lbap: ") ||
-			!strings.Contains(err.Error(), c.want) {
+			!strings.Contains(err.Error(), c.want) || strings.Contains(err.Error(), "graph:") {
 			t.Errorf("%s: got %v", c.name, err)
 		}
 	}

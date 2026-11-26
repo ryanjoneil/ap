@@ -36,25 +36,49 @@ func Unscale(x int64, scale float64) any {
 // ScaleFlag registers the -scale flag on fs and returns a pointer to its
 // value. A value of 0, the default, means no scaling.
 func ScaleFlag(fs *flag.FlagSet) *float64 {
-	return fs.Float64("scale", 0, "multiply costs by `k` and round to integers (accepts non-integer costs)")
+	return fs.Float64("scale", 0, "multiply costs by `k` and round them to integers, to accept non-integer costs (0, the default, means off)")
 }
 
-// Parse parses args with fs. The caller creates fs with flag.ContinueOnError
-// and sets its output; Parse does not change it. It returns (0, true) if help
-// was requested, (1, true) on a bad flag or an unexpected positional
-// argument, and (0, false) on success, in which case the program continues.
+// Parse parses args with fs. The caller creates fs with flag.ContinueOnError,
+// sets its output and usage function. Parse returns (0, false) on success, in
+// which case the program continues. If help was requested it prints the usage
+// once and returns (0, true). On a bad flag or an unexpected positional
+// argument it prints "name: message" and the usage, and returns (1, true).
 func Parse(fs *flag.FlagSet, args []string) (code int, exit bool) {
-	if err := fs.Parse(args); err != nil {
-		if err == flag.ErrHelp {
-			return 0, true
-		}
+	// Silence the flag package's own message and usage, so that the error
+	// gets the "name: " prefix and the usage is printed exactly once.
+	out, usage := fs.Output(), fs.Usage
+	fs.SetOutput(io.Discard)
+	fs.Usage = func() {}
+	err := fs.Parse(args)
+	fs.SetOutput(out)
+	fs.Usage = usage
+
+	switch {
+	case err == flag.ErrHelp:
+		printUsage(fs)
+		return 0, true
+	case err != nil:
+		_, _ = fmt.Fprintf(out, "%s: %v\n", fs.Name(), err)
+		printUsage(fs)
 		return 1, true
-	}
-	if fs.NArg() > 0 {
-		_, _ = fmt.Fprintf(fs.Output(), "%s: unexpected argument %s\n", fs.Name(), fs.Arg(0))
+	case fs.NArg() > 0:
+		_, _ = fmt.Fprintf(out, "%s: unexpected argument %s\n", fs.Name(), fs.Arg(0))
+		printUsage(fs)
 		return 1, true
 	}
 	return 0, false
+}
+
+// printUsage calls fs.Usage, or prints the flag package's default usage if
+// fs.Usage is nil.
+func printUsage(fs *flag.FlagSet) {
+	if fs.Usage != nil {
+		fs.Usage()
+		return
+	}
+	_, _ = fmt.Fprintf(fs.Output(), "Usage of %s:\n", fs.Name())
+	fs.PrintDefaults()
 }
 
 // Fail prints "name: err" and a newline to stderr and returns exit code 1.

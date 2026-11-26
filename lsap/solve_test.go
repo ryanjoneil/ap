@@ -117,6 +117,30 @@ func TestNewErrors(t *testing.T) {
 	}
 }
 
+// TestNewBoundExampleInt32 checks the example in New's doc comment: for
+// T = int32 and n = 1000, costs in [0, 535] are accepted and costs in [0, 536]
+// are rejected. With minC = 0 and maxC = r, M = 1001·r + 1, and New requires
+// 4·1001·M ≤ 2³¹−1, that is M ≤ 536334.
+func TestNewBoundExampleInt32(t *testing.T) {
+	const n = 1000
+	matrix := func(r int32) [][]int32 {
+		c := make([][]int32, n)
+		for i := range c {
+			c[i] = make([]int32, n)
+		}
+		c[0][1] = r
+		return c
+	}
+	// M = 1001·535 + 1 = 535536 ≤ 536334.
+	if _, err := lsap.New(matrix(535)); err != nil {
+		t.Errorf("int32, n = 1000, range [0, 535]: %v", err)
+	}
+	// M = 1001·536 + 1 = 536537 > 536334.
+	if _, err := lsap.New(matrix(536)); err == nil {
+		t.Error("int32, n = 1000, range [0, 536]: want error")
+	}
+}
+
 func TestNewCopiesInput(t *testing.T) {
 	c := [][]int64{{1, 2}, {3, 4}}
 	a, err := lsap.New(c)

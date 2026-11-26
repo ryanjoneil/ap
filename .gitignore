@@ -14,6 +14,8 @@
 .glide/
 
 cmd/lsap/lsap
+cmd/mcm/mcm
+cmd/lbap/lbap
 
 bench/.venv/
 bench/instances/

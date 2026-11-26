@@ -1,13 +1,11 @@
 // Package lbap solves linear bottleneck assignment problems. These take the
-// form:
+// form (book (6.1), cited below):
 //
-//	min   max_i,j c_ij * x_ij
-//	s.t.  ∑_i   x_ij = 1      ∀ j
-//	      ∑_j   x_ij = 1      ∀ i
-//	            x_ij ∈ {0,1}  ∀ i,j
+//	min_φ  max_i  c_iφ(i)
 //
-// That is, among all perfect assignments of rows (u ∈ U) to columns (v ∈ V),
-// find one whose largest assigned cost is as small as possible. Bottleneck
+// over all permutations φ of {0, …, n−1}. That is, among all perfect
+// assignments of rows (u ∈ U) to columns (v ∈ V), find one whose largest
+// assigned cost is as small as possible. Costs may be negative. Bottleneck
 // problems usually have many optimal assignments; which one is returned is
 // deterministic but otherwise unspecified.
 //

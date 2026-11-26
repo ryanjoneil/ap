@@ -2,6 +2,7 @@ package lsap
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/ryanjoneil/ap"
 	"github.com/ryanjoneil/ap/internal/intmath"
@@ -15,17 +16,19 @@ import (
 // Departure from the source: APC solves a single problem. Here an edge can be
 // removed after solving by setting its cost to the big-M value m, and the
 // problem re-solved incrementally from the current primal and dual solution.
-// The cost rows are copied on write, so that Copy is cheap.
+// The cost rows are copied on write, so that Copy is cheap. Copy marks the
+// source's rows as shared, so owned is atomic: several goroutines may call
+// Copy on the same kernel at once. Only copy and remove touch owned.
 type dense[T ap.Integer] struct {
 	m    T   // Cost of a removed edge; every real cost is below m
 	maxT T   // Largest value of T, cached for path
 	n    int // n of assignment problem
 
-	a     [][]T  // a[i][j] = cost of assigning row i to column j
-	owned []bool // owned[i] = true if a[i] is not shared with another kernel
-	u     []T    // u[i] = dual price for row i
-	v     []T    // v[j] = dual price for column j
-	z     T      // Objective value
+	a     [][]T         // a[i][j] = cost of assigning row i to column j
+	owned []atomic.Bool // owned[i] = true if a[i] is not shared with another kernel
+	u     []T           // u[i] = dual price for row i
+	v     []T           // v[j] = dual price for column j
+	z     T             // Objective value
 
 	f    []int // f[i] = column assigned to row i, -1 if unassigned
 	fBar []int // fBar[j] = row assigned to column j, -1 if unassigned
@@ -58,10 +61,10 @@ func newDense[T ap.Integer](costs [][]T) (*dense[T], error) {
 	}
 
 	a := make([][]T, n)
-	owned := make([]bool, n)
+	owned := make([]atomic.Bool, n)
 	for i, row := range costs {
 		a[i] = append([]T(nil), row...)
-		owned[i] = true
+		owned[i].Store(true)
 	}
 
 	f := make([]int, n)
@@ -155,9 +158,9 @@ func (a *dense[T]) remove(i, j int) {
 	if !a.inRange(i, j) || a.a[i][j] == a.m {
 		return
 	}
-	if !a.owned[i] {
+	if !a.owned[i].Load() {
 		a.a[i] = append([]T(nil), a.a[i]...)
-		a.owned[i] = true
+		a.owned[i].Store(true)
 	}
 	if a.f[i] == j {
 		a.f[i] = -1
@@ -168,10 +171,11 @@ func (a *dense[T]) remove(i, j int) {
 
 // copy shares the cost rows between a and the copy, and marks them as not
 // owned in both, so that whichever kernel next removes an edge from a row
-// copies that row first.
+// copies that row first. Apart from the atomic stores to a.owned, it only
+// reads a, so concurrent calls to copy on the same kernel are safe.
 func (a *dense[T]) copy() kernel[T] {
 	for i := range a.owned {
-		a.owned[i] = false
+		a.owned[i].Store(false)
 	}
 
 	return &dense[T]{
@@ -180,7 +184,7 @@ func (a *dense[T]) copy() kernel[T] {
 		n:    a.n,
 
 		a:     append([][]T(nil), a.a...),
-		owned: make([]bool, a.n),
+		owned: make([]atomic.Bool, a.n),
 		u:     append([]T(nil), a.u...),
 		v:     append([]T(nil), a.v...),
 		z:     a.z,

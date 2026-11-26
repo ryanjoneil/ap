@@ -23,21 +23,30 @@ type CSR struct {
 	Adj    []int // len = number of edges
 }
 
-var errEmpty = errors.New("graph: empty graph")
+// Error messages have no package prefix: the solvers add their own, and the
+// CLIs show them to users. They name the solver's own fields (n for a square
+// problem, nu and nv for a bipartite graph).
 
-// build constructs the CSR for m edges whose endpoints are given by uv. It
-// also returns order, where order[k] is the index of the input edge stored at
-// Adj[k]. It reports out-of-range endpoints and duplicate edges.
-func build(nU, nV, m int, uv func(i int) (int, int)) (*CSR, []int, error) {
-	if nU <= 0 || nV <= 0 {
-		return nil, nil, errEmpty
+// checkSize returns an error if size, the value of the named field, is less
+// than 1.
+func checkSize(field string, size int) error {
+	if size < 1 {
+		return fmt.Errorf("graph is empty: %s = %d; want %s ≥ 1", field, size, field)
 	}
+	return nil
+}
+
+// build constructs the CSR for m edges whose endpoints are given by uv, for
+// nU, nV ≥ 1. It also returns order, where order[k] is the index of the input
+// edge stored at Adj[k]. It reports out-of-range endpoints and duplicate
+// edges; dims describes the graph's size in an out-of-range message.
+func build(nU, nV, m int, dims string, uv func(i int) (int, int)) (*CSR, []int, error) {
 	// Pass 1: stable counting sort of edge indices by column.
 	colStart := make([]int, nV+1)
 	for i := 0; i < m; i++ {
 		u, v := uv(i)
 		if u < 0 || u >= nU || v < 0 || v >= nV {
-			return nil, nil, fmt.Errorf("graph: edge (%d, %d) out of range for %d x %d graph", u, v, nU, nV)
+			return nil, nil, fmt.Errorf("edge %d (%d, %d) out of range for %s", i, u, v, dims)
 		}
 		colStart[v+1]++
 	}
@@ -72,7 +81,7 @@ func build(nU, nV, m int, uv func(i int) (int, int)) (*CSR, []int, error) {
 	for u := 0; u < nU; u++ {
 		for k := start[u] + 1; k < start[u+1]; k++ {
 			if adj[k] == adj[k-1] {
-				return nil, nil, fmt.Errorf("graph: duplicate edge (%d, %d)", u, adj[k])
+				return nil, nil, fmt.Errorf("duplicate edge (%d, %d)", u, adj[k])
 			}
 		}
 	}
@@ -82,7 +91,14 @@ func build(nU, nV, m int, uv func(i int) (int, int)) (*CSR, []int, error) {
 // FromPairs builds an nU x nV graph from unweighted edges. It reports an error
 // for an empty graph, an out-of-range endpoint or a duplicate edge.
 func FromPairs(nU, nV int, pairs []ap.Pair) (*CSR, error) {
-	g, _, err := build(nU, nV, len(pairs), func(i int) (int, int) { return pairs[i].U, pairs[i].V })
+	if err := checkSize("nu", nU); err != nil {
+		return nil, err
+	}
+	if err := checkSize("nv", nV); err != nil {
+		return nil, err
+	}
+	dims := fmt.Sprintf("nu = %d, nv = %d", nU, nV)
+	g, _, err := build(nU, nV, len(pairs), dims, func(i int) (int, int) { return pairs[i].U, pairs[i].V })
 	return g, err
 }
 
@@ -90,14 +106,17 @@ func FromPairs(nU, nV int, pairs []ap.Pair) (*CSR, error) {
 // NU = len(adj) and NV = len(adj[0]). It reports an error for an empty or
 // ragged matrix.
 func FromAdjacency(adj [][]bool) (*CSR, error) {
-	if len(adj) == 0 || len(adj[0]) == 0 {
-		return nil, errEmpty
+	if len(adj) == 0 {
+		return nil, errors.New("empty adjacency matrix")
+	}
+	if len(adj[0]) == 0 {
+		return nil, errors.New("empty adjacency matrix: row 0 has no columns")
 	}
 	nU, nV := len(adj), len(adj[0])
 	start := make([]int, nU+1)
 	for u, row := range adj {
 		if len(row) != nV {
-			return nil, fmt.Errorf("graph: ragged adjacency matrix: row %d has %d columns, want %d", u, len(row), nV)
+			return nil, fmt.Errorf("ragged adjacency matrix: row %d has %d columns; want %d", u, len(row), nV)
 		}
 		k := start[u]
 		for _, ok := range row {
@@ -124,7 +143,11 @@ func FromAdjacency(adj [][]bool) (*CSR, error) {
 // parallel to Adj. It reports an error for an empty graph, an out-of-range
 // endpoint or a duplicate edge.
 func FromEdges[T ap.Integer](n int, edges []ap.Edge[T]) (*CSR, []T, error) {
-	g, order, err := build(n, n, len(edges), func(i int) (int, int) { return edges[i].U, edges[i].V })
+	if err := checkSize("n", n); err != nil {
+		return nil, nil, err
+	}
+	dims := fmt.Sprintf("n = %d", n)
+	g, order, err := build(n, n, len(edges), dims, func(i int) (int, int) { return edges[i].U, edges[i].V })
 	if err != nil {
 		return nil, nil, err
 	}
@@ -140,13 +163,16 @@ func FromEdges[T ap.Integer](n int, edges []ap.Edge[T]) (*CSR, []T, error) {
 // reports an error for an empty or non-square matrix.
 func FromMatrix[T ap.Integer](costs [][]T) (*CSR, []T, error) {
 	n := len(costs)
-	if n == 0 || len(costs[0]) == 0 {
-		return nil, nil, errEmpty
+	if n == 0 {
+		return nil, nil, errors.New("empty cost matrix")
+	}
+	if len(costs[0]) == 0 {
+		return nil, nil, errors.New("empty cost matrix: row 0 has no columns")
 	}
 	flat := make([]T, 0, n*n)
 	for u, row := range costs {
 		if len(row) != n {
-			return nil, nil, fmt.Errorf("graph: matrix is not square: row %d has %d columns, want %d", u, len(row), n)
+			return nil, nil, fmt.Errorf("cost matrix is not square: row %d has %d columns; want %d", u, len(row), n)
 		}
 		flat = append(flat, row...)
 	}

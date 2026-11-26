@@ -23,6 +23,9 @@ some noise. All solvers ran sequentially, one at a time.
     # comparison
     bench/.venv/bin/python bench/compare.py bench/instances/*.json
 
+Machol-Wien stops at n = 2000, rather than 5000 like the other dense classes,
+to bound the run time: ap-lsap already takes about 24 s per run at n = 2000.
+
 ## What is timed
 
 Each solver runs 3 times per instance; the table shows the median in seconds.
@@ -34,7 +37,10 @@ Only the solve is timed, not JSON parsing or array construction.
 - SciPy: `linear_sum_assignment` (dense) and
   `min_weight_full_bipartite_matching` on a CSR matrix with costs +1 (sparse;
   for dense instances the full matrix is passed as CSR, as an extra data point).
-  The numpy arrays / CSR matrix are built before the timer starts.
+  The numpy arrays / CSR matrix are built before the timer starts. In the runs
+  reported here, the SciPy timer also covered summing the assigned costs
+  (`m[r, c].sum()`, O(n)), which is negligible next to the solve and changes
+  no verdict below. compare.py now sums them after the timer stops.
 - OR-Tools: `SimpleLinearSumAssignment`; the timer covers
   `add_arcs_with_cost` (bulk, from prebuilt numpy arrays), `solve` and reading
   the optimal cost. The Python API matched the brief's names in 9.15.
@@ -81,7 +87,7 @@ fastest external solver on uniform and geometric, level with SciPy on two-cost
 (slightly faster at n = 1000, tied at n = 5000), and faster than OR-Tools on
 uniform and two-cost at n = 5000. It is clearly slower on the Machol-Wien class
 (16x-29x slower than OR-Tools, 5x-8x slower than SciPy's dense solver) and on
-sparse instances, where it is 11x-12x slower than OR-Tools and about 4x faster
-than SciPy's sparse solver. Only Machol-Wien and the sparse classes exceed the
+sparse instances, where it is 11x-12x slower than OR-Tools, and 3.2x (uniform)
+to 4.5x (geometric) faster than SciPy's sparse solver. Only Machol-Wien and the sparse classes exceed the
 3x threshold. The gap grows with n on Machol-Wien. Results are for one seed on
 one machine, with three runs each.
