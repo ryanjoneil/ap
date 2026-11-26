@@ -36,6 +36,7 @@ type dense[T ap.Integer] struct {
 	b        T    // Margin: every |u[i]| and |v[j]| is at most b
 	removed  bool // True once an edge has been removed, so that m is a cost
 	overflow bool // True once solving would overflow T; sticky
+	sumFits  bool // True if n·a0 fits in T, so that no cost sum overflows
 
 	a     [][]T         // a[i][j] = cost of assigning row i to column j
 	owned []atomic.Bool // owned[i] = true if a[i] is not shared with another kernel
@@ -112,6 +113,7 @@ func newDense[T ap.Integer](costs [][]T) (*dense[T], error) {
 		pi:    pi,
 	}
 	d.b = d.margin()
+	_, d.sumFits = intmath.MulInt(d.a0, n)
 	d.initialize()
 	return d, nil
 }
@@ -212,8 +214,15 @@ func (a *dense[T]) assign() (ap.Permutation, error) {
 		}
 	}
 
+	// No assigned edge is removed, so every |a[i][j]| summed here is at most
+	// a0, and every partial sum at most n·a0. If that fits, the sum needs no
+	// checks.
 	var z T
 	for i, j := range a.f {
+		if a.sumFits {
+			z += a.a[i][j]
+			continue
+		}
 		var ok bool
 		if z, ok = intmath.Add(z, a.a[i][j]); !ok {
 			a.overflow = true
@@ -287,6 +296,7 @@ func (a *dense[T]) copy() kernel[T] {
 		b:        a.b,
 		removed:  a.removed,
 		overflow: a.overflow,
+		sumFits:  a.sumFits,
 
 		a:     append([][]T(nil), a.a...),
 		owned: make([]atomic.Bool, a.n),

@@ -10,12 +10,16 @@ import (
 
 // MaxOf returns the maximum value of the signed integer type T.
 func MaxOf[T ap.Integer]() T {
-	var x T = 1
-	// Grow 1, 3, 7, ... until the next value wraps to something not greater.
-	for next := x<<1 | 1; next > x; next = x<<1 | 1 {
-		x = next
+	// 1 shifted into the sign bit is the minimum value, and its complement is
+	// the maximum. 1 << w is negative only if w is the sign bit, so try the
+	// sign bits of the possible widths in turn: 7, 15, 31, 63. The loop runs
+	// at most four times.
+	var one T = 1
+	w := uint(7)
+	for one<<w > 0 {
+		w = 2*w + 1
 	}
-	return x
+	return ^(one << w)
 }
 
 // MinOf returns the minimum value of the signed integer type T.
