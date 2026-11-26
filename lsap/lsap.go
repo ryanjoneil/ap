@@ -86,11 +86,12 @@ func New[T ap.Integer](costs [][]T) (*LSAP[T], error) {
 //
 // NewSparse returns an error if n < 1, if n > math.MaxInt32 (the search
 // stores column indices as int32), if an edge is out of range or duplicated,
-// or if its costs could overflow T while solving. It requires
+// or if a cost is the smallest or largest value of T.
 //
-//	4·(n+1)·max |c| ≤ the largest value of T
-//
-// over the costs c of all edges.
+// Passing NewSparse doesn't mean that solving fits in T. Assign returns
+// [ap.ErrOverflow] if it would overflow T, which can happen for costs above
+// about a fifth of the largest value of T. Use a wider T in that case. To
+// keep a solver to fall back on, call Copy before Assign or Remove.
 func NewSparse[T ap.Integer](n int, edges []ap.Edge[T]) (*LSAP[T], error) {
 	s, err := newSparse(n, edges)
 	if err != nil {
