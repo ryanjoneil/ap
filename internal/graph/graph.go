@@ -1,5 +1,5 @@
 // Package graph builds the compressed-sparse-row bipartite graphs shared by
-// the sparse lsap, matching and lbap solvers.
+// the sparse lsap, mcm and lbap solvers.
 //
 // Every builder validates its input, copies it (the result never aliases
 // caller memory) and runs in O(edges + NU + NV) time using two stable counting
