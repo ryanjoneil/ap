@@ -107,20 +107,24 @@ func TestNewErrors(t *testing.T) {
 			t.Errorf("%s: want error", name)
 		}
 	}
-	// M = 2·(1+1) + 1 + 1 = 6, and 4·(2+1)·6 = 72 ≤ 127.
-	if _, err := lsap.New([][]int8{{-1, 1}, {1, -1}}); err != nil {
-		t.Errorf("int8 within bound: %v", err)
+	// M = 2·(41 − 0) + 41 + 1 = 124 < 127.
+	if _, err := lsap.New([][]int8{{0, 41}, {0, 0}}); err != nil {
+		t.Errorf("int8, M = 124: %v", err)
 	}
-	// M = 2·(2+2) + 2 + 1 = 11, and 4·(2+1)·11 = 132 > 127.
-	if _, err := lsap.New([][]int8{{-2, 2}, {2, -2}}); err == nil {
-		t.Error("int8 past bound: want error")
+	// M = 2·(42 − 0) + 42 + 1 = 127, the largest int8.
+	if _, err := lsap.New([][]int8{{0, 42}, {0, 0}}); err == nil {
+		t.Error("int8, M = 127: want error")
+	}
+	// |−128| is not representable in int8.
+	if _, err := lsap.New([][]int8{{-128, 0}, {0, 0}}); err == nil {
+		t.Error("int8, cost −128: want error")
 	}
 }
 
 // TestNewBoundExampleInt32 checks the example in New's doc comment: for
-// T = int32 and n = 1000, costs in [0, 535] are accepted and costs in [0, 536]
-// are rejected. With minC = 0 and maxC = r, M = 1001·r + 1, and New requires
-// 4·1001·M ≤ 2³¹−1, that is M ≤ 536334.
+// T = int32 and n = 1000, costs in [0, 2145338] are accepted and costs in
+// [0, 2145339] are rejected. With minC = 0 and maxC = r, M = 1001·r + 1, and
+// New requires M < 2³¹−1.
 func TestNewBoundExampleInt32(t *testing.T) {
 	const n = 1000
 	matrix := func(r int32) [][]int32 {
@@ -131,13 +135,13 @@ func TestNewBoundExampleInt32(t *testing.T) {
 		c[0][1] = r
 		return c
 	}
-	// M = 1001·535 + 1 = 535536 ≤ 536334.
-	if _, err := lsap.New(matrix(535)); err != nil {
-		t.Errorf("int32, n = 1000, range [0, 535]: %v", err)
+	// M = 1001·2145338 + 1 = 2147483339 < 2147483647.
+	if _, err := lsap.New(matrix(2_145_338)); err != nil {
+		t.Errorf("int32, n = 1000, range [0, 2145338]: %v", err)
 	}
-	// M = 1001·536 + 1 = 536537 > 536334.
-	if _, err := lsap.New(matrix(536)); err == nil {
-		t.Error("int32, n = 1000, range [0, 536]: want error")
+	// M = 1001·2145339 + 1 = 2147484340 overflows int32.
+	if _, err := lsap.New(matrix(2_145_339)); err == nil {
+		t.Error("int32, n = 1000, range [0, 2145339]: want error")
 	}
 }
 
@@ -272,7 +276,7 @@ func TestReducedCostOutOfRange(t *testing.T) {
 
 // Every 2×2 int8 matrix with entries in [-1,1], with every removal mask,
 // matches brute force.
-func TestOverflowBoundInt8(t *testing.T) {
+func TestExhaustive2x2Int8(t *testing.T) {
 	vals := []int8{-1, 0, 1}
 	for m := 0; m < 81; m++ {
 		c := [][]int8{

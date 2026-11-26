@@ -1,21 +1,19 @@
 package lsap
 
-// solve updates A, U, V, and Z to the optimal LSAP solution. It is the main
+// solve updates f, fBar, u and v to the optimal LSAP solution. It is the main
 // loop of Hungarian_3 (book §4.2.2, Algorithm 4.5) as coded in APC by
-// Carpaneto, Martello, and Toth (1988).
+// Carpaneto, Martello, and Toth (1988). It stops early if path sets
+// a.overflow. As a departure from APC, it doesn't compute the objective value;
+// assign does that with checked additions.
 func (a *dense[T]) solve() {
 	for i := 0; i < a.n; i++ {
 		if a.f[i] < 0 {
 			j := a.path(i)
-			if j >= 0 {
-				a.increase(i, j)
+			if j < 0 {
+				return
 			}
+			a.increase(i, j)
 		}
-	}
-
-	a.z = 0
-	for i := 0; i < a.n; i++ {
-		a.z += a.u[i] + a.v[i]
 	}
 }
 
@@ -23,6 +21,11 @@ func (a *dense[T]) solve() {
 // prices, until it reaches an unassigned column, which it returns. It is
 // Procedure Augment(k) (book §4.2.2, Algorithm 4.4). Where the book picks any
 // labelled, unscanned column, path picks the one with the lowest index.
+//
+// As a departure from the source, path checks that each dual update keeps the
+// dual prices within the margin a.b (see margin), which makes the unchecked
+// reduced costs in its inner loop safe. If an update would leave the margin,
+// path sets a.overflow and returns −1 without making it.
 func (a *dense[T]) path(i int) int {
 	lr := []int{i}          // Vector of labelled rows
 	uc := make([]bool, a.n) // uc[j] = true if column j is unlabelled
@@ -68,12 +71,25 @@ func (a *dense[T]) path(i int) int {
 				}
 			}
 
+			// d ≥ 0, so u only rises and v only falls. Neither check can
+			// overflow, since b − u[h] and v[j] + b lie in [0, 2b].
 			for _, h := range lr {
+				if d > a.b-a.u[h] {
+					a.overflow = true
+					return -1
+				}
 				a.u[h] += d
 			}
 
+			// The columns with pi[j] == 0 are the labelled ones. Every
+			// unlabelled column has pi[j] ≥ d, as d is their minimum, so
+			// pi[j] − d ≥ 0.
 			for j := 0; j < a.n; j++ {
 				if a.pi[j] == 0 {
+					if d > a.v[j]+a.b {
+						a.overflow = true
+						return -1
+					}
 					a.v[j] -= d
 				} else {
 					a.pi[j] -= d
