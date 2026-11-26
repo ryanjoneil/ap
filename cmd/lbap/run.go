@@ -25,6 +25,7 @@ The output has a "status" of "optimal" or "infeasible".
 Usage:
 
 lbap < input.json -cycles > output.json
+echo '[[1.5,2],[2,1.5]]' | lbap -scale 10
 
 cat <<EOF | lbap | jq
 [

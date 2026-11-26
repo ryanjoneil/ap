@@ -25,6 +25,7 @@ The output has a "status" of "optimal" or "infeasible".
 Usage:
 
 lsap < input.json -dual -rc > output.json
+echo '[[1.5,2],[2,1.5]]' | lsap -scale 10
 
 cat <<EOF | lsap | jq
 [
