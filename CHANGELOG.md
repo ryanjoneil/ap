@@ -15,13 +15,27 @@ New:
   for non-integer costs.
 * #23: Benchmark suite and external comparison with SciPy and OR-Tools, in
   `bench/`.
-* `Remove` and `Copy` on every solver; the sparse and dense solvers re-solve
-  incrementally after a `Remove`.
+* `Remove` and `Copy` on every solver, including the new ones; the sparse and
+  dense solvers re-solve incrementally after a `Remove`.
+* `lsap.LSAP.Copy` may be called concurrently on the same solver, so a solved
+  parent can seed parallel work. No other method may run concurrently.
+* `ap.Edge` and `ap.Pair` describe sparse input (weighted and unweighted
+  edges), and `ap.ErrInfeasible` is the error every solver's `Assign` returns
+  when no feasible assignment exists.
+* Without `-scale`, the CLIs accept a cost such as `5.0` or `1e3` whose value is
+  an integer of magnitude at most 2^53.
 
 Breaking changes (#19: `ap`/`lsap` API cleanup):
 
 * `lsap.New` returns `(*LSAP, error)`. Handle the error; bad input no longer
   panics.
+* `lsap.New` rejects cost ranges that could overflow `T` while solving; see
+  `New` for the bound. For example, with `int32` and n = 1000, costs in
+  [0, 535] are accepted but costs in [0, 536] are not. Use `int64`, or
+  `lsap.NewSparse`, for wider ranges.
+* `lsap.New` copies its input. v0.4 kept the caller's matrix and modified it
+  when edges were removed.
+* `Copy` returns `*LSAP[T]` instead of the removed `Assigner[T]` interface.
 * `Assign` returns `(ap.Permutation, error)`. Check the error, which is
   `ap.ErrInfeasible` when no feasible assignment exists.
 * `M` and `SetM` are removed. The solver handles infeasibility itself, so

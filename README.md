@@ -92,9 +92,11 @@ echo '{"n":2,"edges":[[0,0,1],[1,0,2]]}' | lsap
 {"status":"infeasible"}
 ```
 
-Costs must be integers. Use `-scale k` to multiply each cost by `k` and round
-it to an integer; reported costs, dual prices and reduced costs are divided by
-`k`. Without it, a non-integer cost is an error.
+Costs must be integers. A cost written with a fraction or exponent, such as
+`5.0` or `1e3`, is accepted if its value is an integer of magnitude at most
+2^53. Use `-scale k` to multiply each cost by `k` and round it to an integer;
+reported costs, dual prices and reduced costs are divided by `k`. Without it,
+a non-integer cost is an error.
 
 ```bash
 echo '[[1.5,2],[2,1.5]]' | lsap -scale 10
@@ -139,9 +141,9 @@ Flags:
   -matrix
     	output matrix assignment form
   -rc
-    	output reduced cost matrix
+    	output reduced costs (a matrix for dense input, a [u, v, rc] list for sparse input)
   -scale k
-    	multiply costs by k and round to integers (accepts non-integer costs)
+    	multiply costs by k and round them to integers, to accept non-integer costs (0, the default, means off)
 ```
 
 ### `mcm`
@@ -248,7 +250,7 @@ Flags:
   -matrix
     	output matrix assignment form
   -scale k
-    	multiply costs by k and round to integers (accepts non-integer costs)
+    	multiply costs by k and round them to integers, to accept non-integer costs (0, the default, means off)
 ```
 
 ## Quick Start: Packages
@@ -273,9 +275,11 @@ provide `Inverse` methods that reverse the direction of assignment.
 
 ```go
 p := ap.Permutation{1, 0, 2, 6, 5, 3, 4}
-p.Cycles()  // {{0, 1}, {2}, {3, 6, 4, 5}}
-p.Inverse() // {1, 0, 2, 5, 6, 4, 3}
-p.Matrix()  // p[u] == v -> m[u][v] == true
+fmt.Println(p.Cycles())  // [[0 1] [2] [3 6 4 5]]
+fmt.Println(p.Inverse()) // [1 0 2 5 6 4 3]
+
+m := p.Matrix()      // m[u][v] is true exactly when p[u] == v
+fmt.Println(m[3][6]) // true
 ```
 
 Every solver's constructors return an error for bad input, and its `Assign`
@@ -298,11 +302,14 @@ a, err := lsap.New([][]int64{
     {11, 91, 10},
 })
 if err != nil {
-    return err
+    log.Fatal(err)
 }
 
-p, err := a.Assign() // [1 2 0]
-cost := a.Cost()     // 49
+p, err := a.Assign()
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(p, a.Cost()) // [1 2 0] 49
 ```
 
 Both variants report dual prices and reduced costs, and both are incremental:
@@ -318,17 +325,26 @@ a, err := lsap.NewSparse(3, []ap.Edge[int64]{
     {U: 2, V: 1, Cost: 3}, {U: 2, V: 2, Cost: 5},
 })
 if err != nil {
-    return err
+    log.Fatal(err)
 }
 
-p, err := a.Assign()      // [1 0 2], cost 8
-rc, ok := a.ReducedCost(0, 0) // 2, true
+p, err := a.Assign()
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(p, a.Cost()) // [1 0 2] 8
+rc, ok := a.ReducedCost(0, 0)
+fmt.Println(rc, ok) // 2 true
 
 b := a.Copy()
 b.Remove(0, 1)
-p, err = b.Assign()       // [0 2 1], cost 13; a is unchanged
+p, err = b.Assign()
+fmt.Println(p, b.Cost(), err) // [0 2 1] 13 <nil>
+fmt.Println(a.Cost())         // 8: a is unchanged
+
 b.Remove(2, 1)
-_, err = b.Assign()       // ap.ErrInfeasible
+_, err = b.Assign()
+fmt.Println(errors.Is(err, ap.ErrInfeasible)) // true
 ```
 
 ### `ap/mcm`: maximum cardinality matching solver
@@ -344,11 +360,11 @@ go get github.com/ryanjoneil/ap/mcm
 ```go
 m, err := mcm.NewSparse(2, 3, []ap.Pair{{U: 0, V: 0}, {U: 1, V: 0}, {U: 1, V: 2}})
 if err != nil {
-    return err
+    log.Fatal(err)
 }
 
-m.Match() // [0 2]: entry u is the column matched to u, or -1
-m.Size()  // 2
+fmt.Println(m.Match()) // [0 2]: entry u is the column matched to u, or -1
+fmt.Println(m.Size())  // 2
 ```
 
 `Assign` returns the matching as a `Permutation` when it is perfect, and
@@ -372,11 +388,14 @@ a, err := lbap.New([][]int{
     {11, 91, 10},
 })
 if err != nil {
-    return err
+    log.Fatal(err)
 }
 
-p, err := a.Assign() // [1 2 0]
-cost := a.Cost()     // 23
+p, err := a.Assign()
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(p, a.Cost()) // [1 2 0] 23
 ```
 
 ## Benchmarks
@@ -387,7 +406,9 @@ results and [bench/README.md](bench/README.md) for how to reproduce them.
 
 ## References
 
-Each package's documentation describes how it uses these.
+The package documentation cites the book and the algorithm papers below. The
+Goldberg–Kennedy and Machol–Wien papers are the sources of instance classes
+used by the benchmark generators (`internal/instances`).
 
 ```text
 Rainer Burkard, Mauro Dell'Amico, and Silvano Martello.

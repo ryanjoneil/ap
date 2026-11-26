@@ -11,7 +11,8 @@ type Edge[T Integer] struct {
 	Cost T
 }
 
-// Pair is an assigned (or matched) pair of row U and column V.
+// Pair is an unweighted edge: it allows assigning (or matching) row U to
+// column V, without a cost.
 type Pair struct {
 	U, V int
 }
