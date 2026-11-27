@@ -19,10 +19,25 @@ import (
 // The cost rows are copied on write, so that Copy is cheap. Copy marks the
 // source's rows as shared, so owned is atomic: several goroutines may call
 // Copy on the same kernel at once. Only copy and remove touch owned.
+//
+// Departure from the source: APC does its arithmetic unchecked, in a type
+// assumed wide enough. Here the kernel keeps every dual price within the
+// margin b (see margin), so that the reduced costs in the inner loop of path
+// cannot overflow T. initialize checks each dual price it sets, path checks
+// each dual update, and assign rechecks all of them against the current b.
+// A dual price outside b sets the sticky overflow flag, and assign returns
+// ap.ErrOverflow. assign sums the objective value with checked additions,
+// unless n·a0 fits in T, when no partial sum can overflow.
 type dense[T ap.Integer] struct {
 	m    T   // Cost of a removed edge; every real cost is below m
 	maxT T   // Largest value of T, cached for path
 	n    int // n of assignment problem
+
+	a0       T    // max |a[i][j]| over the original costs
+	b        T    // Margin: every |u[i]| and |v[j]| is at most b
+	removed  bool // True once an edge has been removed, so that m is a cost
+	overflow bool // True once solving would overflow T; sticky
+	sumFits  bool // True if n·a0 fits in T, so that no cost sum overflows
 
 	a     [][]T         // a[i][j] = cost of assigning row i to column j
 	owned []atomic.Bool // owned[i] = true if a[i] is not shared with another kernel
@@ -38,8 +53,10 @@ type dense[T ap.Integer] struct {
 }
 
 // newDense copies the square, non-empty cost matrix costs into a dense kernel
-// and initializes it. It returns an error if costs could overflow T while
-// solving; see New for the rule.
+// and initializes it. It returns an error if a cost is the smallest value of
+// T, or if M doesn't fit below the largest value of T; see New. If
+// initializing would overflow T, newDense still succeeds, and assign returns
+// ap.ErrOverflow.
 func newDense[T ap.Integer](costs [][]T) (*dense[T], error) {
 	n := len(costs)
 
@@ -51,11 +68,11 @@ func newDense[T ap.Integer](costs [][]T) (*dense[T], error) {
 		}
 	}
 
+	maxT := intmath.MaxOf[T]()
 	m, ok := bigM(n, minC, maxC)
-	k := 4 * (n + 1)
-	if !ok || !intmath.FitsScaled(k, minC) || !intmath.FitsScaled(k, m) {
+	if !ok || m == maxT || minC == intmath.MinOf[T]() {
 		return nil, fmt.Errorf(
-			"lsap: cost range [%d, %d] could overflow %T for n = %d",
+			"lsap: cost range [%d, %d] is too wide for %T with n = %d",
 			minC, maxC, minC, n,
 		)
 	}
@@ -83,8 +100,9 @@ func newDense[T ap.Integer](costs [][]T) (*dense[T], error) {
 
 	d := &dense[T]{
 		m:     m,
-		maxT:  intmath.MaxOf[T](),
+		maxT:  maxT,
 		n:     n,
+		a0:    max(abs(minC), abs(maxC)),
 		a:     a,
 		owned: owned,
 		u:     make([]T, n),
@@ -95,34 +113,126 @@ func newDense[T ap.Integer](costs [][]T) (*dense[T], error) {
 		c:     c,
 		pi:    pi,
 	}
+	d.b = d.margin()
+	_, d.sumFits = intmath.MulInt(d.a0, n)
 	d.initialize()
 	return d, nil
+}
+
+// abs returns |x|. x must not be the smallest value of T.
+func abs[T ap.Integer](x T) T {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+// margin returns the bound b on the dual prices for the current costs, or −1
+// if there is none. Let A be the largest |a[i][j]|: a0 until the first
+// removal, then max(a0, |m|). Then
+//
+//	b = (maxT − A − 1) / 2.
+//
+// If |u[i]| ≤ b and |v[j]| ≤ b, then a[i][j] − u[i] and a[i][j] − v[j] lie
+// in [−(A+b), A+b], and a[i][j] − u[i] − v[j] in [−(A+2b), A+2b], where
+// A + 2b ≤ maxT − 1. So none of them overflows, and none equals maxT, the
+// value path gives pi before the first scan. These are the only differences
+// of costs and dual prices that path, initialize, minCol and reducedCost
+// compute. reducedCost skips removed edges, so its |a[i][j]| ≤ a0 holds even
+// after a removal that assign hasn't seen yet.
+//
+// The dual prices change only in initialize, which checks each one against b
+// before using it, and in path. After initialize, path only raises u and
+// lowers v, by d = min pi[j] over the unlabelled columns. Each pi[j] is a
+// reduced cost, so 0 ≤ d ≤ maxT − 1 by dual feasibility and the bound above.
+// So path checks only d ≤ b − u[i] and d ≤ v[j] + b. With |u[i]|, |v[j]| ≤ b,
+// both right-hand sides lie in [0, 2b] and can't overflow. path also lowers
+// each unlabelled pi[j] by d, and pi[j] ≥ d, so pi[j] − d ≥ 0. remove and
+// increase don't touch the dual prices, but remove can raise A, which lowers
+// b, so assign recomputes b and rechecks every dual price before solving.
+//
+// a0 ≤ maxT, since no cost is the smallest value of T, and |m| ≤ maxT − 1,
+// since minC < m < maxT. So maxT − A − 1 doesn't overflow, and it is
+// negative only if A = maxT.
+func (a *dense[T]) margin() T {
+	bigA := a.a0
+	if a.removed {
+		bigA = max(bigA, abs(a.m))
+	}
+	if bigA == a.maxT {
+		return -1
+	}
+	return (a.maxT - bigA - 1) / 2
+}
+
+// inMargin reports whether |x| ≤ a.b, without computing |x|.
+func (a *dense[T]) inMargin(x T) bool {
+	return -a.b <= x && x <= a.b
 }
 
 // bigM returns n·(maxC − minC) + maxC + 1, and false if that overflows T.
 // Any assignment that uses an edge of cost M costs more than any assignment
 // that doesn't, since M + (n−1)·minC > n·maxC.
+//
+// It adds maxC − minC ≥ 0 to maxC + 1 n times, so the partial sums rise to M,
+// and one overflows only if M does. Multiplying first would overflow for some
+// M that fit when maxC < 0. If maxC − minC overflows, then maxC ≥ 0, so
+// M ≥ (maxC − minC) + maxC + 1 overflows too.
 func bigM[T ap.Integer](n int, minC, maxC T) (T, bool) {
 	r, ok := intmath.Sub(maxC, minC)
 	if !ok {
 		return 0, false
 	}
-	if r, ok = intmath.MulInt(r, n); !ok {
-		return 0, false
+	m, ok := intmath.Add(maxC, 1)
+	for k := 0; ok && k < n; k++ {
+		m, ok = intmath.Add(m, r)
 	}
-	if r, ok = intmath.Add(r, maxC); !ok {
-		return 0, false
-	}
-	return intmath.Add(r, 1)
+	return m, ok
 }
 
+// assign rechecks the dual prices against the current margin, solves, and
+// sums the cost of the assignment, with checked additions unless n·a0 fits in
+// T.
 func (a *dense[T]) assign() (ap.Permutation, error) {
-	a.solve()
+	if !a.overflow {
+		a.b = a.margin()
+		for i := 0; i < a.n; i++ {
+			if !a.inMargin(a.u[i]) || !a.inMargin(a.v[i]) {
+				a.overflow = true
+				break
+			}
+		}
+	}
+	if !a.overflow {
+		a.solve()
+	}
+	if a.overflow {
+		return nil, ap.ErrOverflow
+	}
+
 	for i, j := range a.f {
 		if a.a[i][j] == a.m {
 			return nil, ap.ErrInfeasible
 		}
 	}
+
+	// No assigned edge is removed, so every |a[i][j]| summed here is at most
+	// a0, and every partial sum at most n·a0. If that fits, the sum needs no
+	// checks.
+	var z T
+	for i, j := range a.f {
+		if a.sumFits {
+			z += a.a[i][j]
+			continue
+		}
+		var ok bool
+		if z, ok = intmath.Add(z, a.a[i][j]); !ok {
+			a.overflow = true
+			return nil, ap.ErrOverflow
+		}
+	}
+	a.z = z
+
 	p := make(ap.Permutation, a.n)
 	copy(p, a.f)
 	return p, nil
@@ -167,6 +277,7 @@ func (a *dense[T]) remove(i, j int) {
 		a.fBar[j] = -1
 	}
 	a.a[i][j] = a.m
+	a.removed = true
 }
 
 // copy shares the cost rows between a and the copy, and marks them as not
@@ -182,6 +293,12 @@ func (a *dense[T]) copy() kernel[T] {
 		m:    a.m,
 		maxT: a.maxT,
 		n:    a.n,
+
+		a0:       a.a0,
+		b:        a.b,
+		removed:  a.removed,
+		overflow: a.overflow,
+		sumFits:  a.sumFits,
 
 		a:     append([][]T(nil), a.a...),
 		owned: make([]atomic.Bool, a.n),

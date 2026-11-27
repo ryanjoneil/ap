@@ -89,6 +89,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if errors.Is(err, ap.ErrInfeasible) {
 		return write(stdout, stderr, output{Status: cli.StatusInfeasible})
 	}
+	if errors.Is(err, ap.ErrOverflow) {
+		return cli.Fail(stderr, name, fmt.Errorf("%w; use a smaller -scale or smaller costs", err))
+	}
 	if err != nil {
 		return cli.Fail(stderr, name, err)
 	}

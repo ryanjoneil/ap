@@ -10,12 +10,16 @@ import (
 
 // MaxOf returns the maximum value of the signed integer type T.
 func MaxOf[T ap.Integer]() T {
-	var x T = 1
-	// Grow 1, 3, 7, ... until the next value wraps to something not greater.
-	for next := x<<1 | 1; next > x; next = x<<1 | 1 {
-		x = next
+	// 1 shifted into the sign bit is the minimum value, and its complement is
+	// the maximum. 1 << w is negative only if w is the sign bit, so try the
+	// sign bits of the possible widths in turn: 7, 15, 31, 63. The loop runs
+	// at most four times.
+	var one T = 1
+	w := uint(7)
+	for one<<w > 0 {
+		w = 2*w + 1
 	}
-	return x
+	return ^(one << w)
 }
 
 // MinOf returns the minimum value of the signed integer type T.
@@ -45,6 +49,19 @@ func Sub[T ap.Integer](a, b T) (T, bool) {
 	return a - b, true
 }
 
+// AddWrap returns a+b wrapped into T modulo 2^w, where w is the width of T,
+// as Go defines signed overflow, and the carry: +1 if the exact a+b is above
+// MaxOf[T], −1 if it is below MinOf[T], and 0 if it fits, in which case sum
+// is exact. So the exact a+b is sum + carry·2^w.
+func AddWrap[T ap.Integer](a, b T) (sum T, carry int) {
+	if b > 0 && a > MaxOf[T]()-b {
+		carry = 1
+	} else if b < 0 && a < MinOf[T]()-b {
+		carry = -1
+	}
+	return a + b, carry
+}
+
 // magnitude returns |v| as a uint64, correct even for the minimum int64.
 func magnitude(v int64) uint64 {
 	if v < 0 {
@@ -71,13 +88,4 @@ func MulInt[T ap.Integer](a T, k int) (T, bool) {
 		return T(-lo), true
 	}
 	return T(lo), true
-}
-
-// FitsScaled reports whether k*|c| <= MaxOf[T]. It returns false if k <= 0 or
-// c == MinOf[T], since |MinOf[T]| is not representable.
-func FitsScaled[T ap.Integer](k int, c T) bool {
-	if k <= 0 || c == MinOf[T]() {
-		return false
-	}
-	return magnitude(int64(c)) <= uint64(MaxOf[T]())/uint64(k)
 }

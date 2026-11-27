@@ -57,6 +57,14 @@ func TestInvalid(t *testing.T) {
 	}
 }
 
+func TestOverflow(t *testing.T) {
+	code, out, errOut := runString(nil, `[[4000000000000000000]]`)
+	want := "lsap: ap: arithmetic overflow; use a smaller -scale or smaller costs\n"
+	if code != 1 || out != "" || errOut != want {
+		t.Errorf("%d %q %q", code, out, errOut)
+	}
+}
+
 func TestHelp(t *testing.T) {
 	code, _, errOut := runString([]string{"-h"}, "")
 	if code != 0 || !strings.Contains(errOut, "Usage") {

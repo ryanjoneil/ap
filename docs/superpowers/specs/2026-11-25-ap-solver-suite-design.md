@@ -221,8 +221,11 @@ Constructors return descriptive errors, never panic, for:
   ragged rows;
 - a sparse edge with an endpoint out of range;
 - a duplicate sparse edge (same `U, V`);
-- costs whose range could overflow `T` during solving. Each solver documents
-  its exact bound and tests it at the boundary.
+- costs that can't be represented in `T`. Each constructor documents its
+  exact rule and tests it at the boundary. One exception: `lsap.NewSparse`
+  also rejects a cost equal to `T`'s maximum, which is representable but is
+  the value its search uses to mark an unlabelled column. `Assign` returns `ap.ErrOverflow`
+  when the solve would overflow `T`.
 
 ### Internal packages (`internal/`)
 
@@ -293,7 +296,9 @@ func (a *LSAP[T]) Copy() *LSAP[T]
 - **Big-M soundness (dense).** If the dense kernel keeps big-M for removed
   edges, validation in `New` must guarantee that the optimum uses an M edge
   only when no assignment exists without one. For example, require
-  n · (max cost − min cost) < M, with no overflow anywhere in the solver.
+  n · (max cost − min cost) < M. Overflow in the solver is detected, not
+  ruled out up front: `Assign` returns `ap.ErrOverflow` instead of a wrong
+  answer.
   After solving, any M edge in the assignment means `ErrInfeasible`.
 - `ReducedCost(u, v)` uses the comma-ok form: it returns `ok == false` for a
   removed or nonexistent edge, the way a map lookup does, so callers never

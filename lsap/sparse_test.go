@@ -176,16 +176,17 @@ func TestNewSparseErrors(t *testing.T) {
 			t.Errorf("n = %d: want error", n)
 		}
 	}
-	// 4·(2+1)·11 = 132 > 127.
-	if _, err := lsap.NewSparse(2, []ap.Edge[int8]{{U: 0, V: 0, Cost: 11}}); err == nil {
-		t.Error("int8 past bound: want error")
+	// NewSparse rejects only costs equal to the smallest or largest value of
+	// T, whatever n is.
+	for _, c := range []int8{math.MaxInt8, math.MinInt8} {
+		if _, err := lsap.NewSparse(2, []ap.Edge[int8]{{U: 0, V: 0, Cost: c}}); err == nil {
+			t.Errorf("int8 cost %d: want error", c)
+		}
 	}
-	if _, err := lsap.NewSparse(2, []ap.Edge[int8]{{U: 0, V: 0, Cost: -11}}); err == nil {
-		t.Error("int8 past bound (negative): want error")
-	}
-	// 4·(2+1)·10 = 120 ≤ 127.
-	if _, err := lsap.NewSparse(2, []ap.Edge[int8]{{U: 0, V: 0, Cost: 10}, {U: 1, V: 1, Cost: -10}}); err != nil {
-		t.Errorf("int8 within bound: %v", err)
+	for _, c := range []int8{11, -11} {
+		if _, err := lsap.NewSparse(2, []ap.Edge[int8]{{U: 0, V: 0, Cost: c}}); err != nil {
+			t.Errorf("int8 cost %d: %v", c, err)
+		}
 	}
 }
 
@@ -214,60 +215,5 @@ func TestSparseReducedCostMissing(t *testing.T) {
 	a.Remove(5, 5) // out of range: a no-op
 	if _, err := a.Assign(); err != nil || a.Cost() != 2 {
 		t.Errorf("got %v, cost %v", err, a.Cost())
-	}
-}
-
-// Random int8 instances with costs at the overflow bound match brute force
-// after random removals, so the bound leaves enough room for the duals and
-// path lengths.
-func TestSparseOverflowBoundInt8(t *testing.T) {
-	rng := rand.New(rand.NewSource(1))
-	for trial := 0; trial < 2000; trial++ {
-		n := 1 + rng.Intn(4)
-		bound := math.MaxInt8 / (4 * (n + 1))
-		c := make([][]int64, n)
-		var edges []ap.Edge[int8]
-		mask := fullMask(n)
-		for i := range c {
-			c[i] = make([]int64, n)
-			for j := range c[i] {
-				c[i][j] = int64(rng.Intn(2*bound+1) - bound)
-				if rng.Intn(4) == 0 {
-					c[i][j] = int64(bound)
-				} else if rng.Intn(4) == 0 {
-					c[i][j] = int64(-bound)
-				}
-				edges = append(edges, ap.Edge[int8]{U: i, V: j, Cost: int8(c[i][j])})
-			}
-		}
-		a, err := lsap.NewSparse(n, edges)
-		if err != nil {
-			t.Fatalf("%v: NewSparse: %v", c, err)
-		}
-		for step := 0; ; step++ {
-			// Every other step removes an assigned edge, so a correct solver
-			// becomes infeasible within 2n² steps.
-			if step > 2*n*n {
-				t.Fatalf("%v: still feasible after %v steps", c, step)
-			}
-			want, feasible := bruteforce.MinSum(c, mask)
-			p, err := a.Assign()
-			if !feasible {
-				if !errors.Is(err, ap.ErrInfeasible) {
-					t.Errorf("%v mask %v: got (%v, %v); want ErrInfeasible", c, mask, p, err)
-				}
-				break
-			}
-			if err != nil || int64(a.Cost()) != want {
-				t.Fatalf("%v mask %v: got (%v, %v, cost %v); want cost %v", c, mask, p, err, a.Cost(), want)
-			}
-			u := rng.Intn(n)
-			v := p[u]
-			if step%2 == 1 {
-				v = rng.Intn(n)
-			}
-			mask[u][v] = false
-			a.Remove(u, v)
-		}
 	}
 }

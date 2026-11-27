@@ -16,7 +16,9 @@ import (
 //
 // The results reported by Cost, DualPrices and ReducedCost are meaningful
 // only after a successful call to Assign. They are undefined before any call
-// to Assign, and after a call to Assign that returns an error.
+// to Assign, and after a call to Assign that returns an error. After Assign
+// returns [ap.ErrOverflow], the solver can't solve again, and neither can
+// copies made from it afterwards; see Assign.
 //
 // An LSAP is not safe for concurrent use, with one exception: several
 // goroutines may call Copy on the same solver at once, so that a solved parent
@@ -39,19 +41,22 @@ type kernel[T ap.Integer] interface {
 // costs don't affect the solver, and the solver never modifies costs.
 //
 // New returns an error if costs is empty, ragged or not square, or if its
-// costs could overflow T while solving. Removed edges are given the cost
+// costs are too wide for T. Removed edges are given the cost
 //
 //	M = n·(maxC − minC) + maxC + 1
 //
-// where minC and maxC are the smallest and largest costs. New requires
+// where minC and maxC are the smallest and largest costs. New requires that
+// no cost is the smallest value of T, and that M is less than the largest
+// value of T. For example, with T = int32 and n = 1000, costs in
+// [0, 2145338] are accepted but costs in [0, 2145339] are not, since
+// 1001·2145339 + 1 > 2³¹−1.
 //
-//	4·(n+1)·max(|minC|, |M|) ≤ the largest value of T
-//
-// and computes M with overflow checks. The bound is restrictive for narrow
-// types: for example, with T = int32 and n = 1000, costs in [0, 535] are
-// accepted but costs in [0, 536] are not, since
-// 4·1001·(1000·536 + 536 + 1) > 2³¹−1. Use int64, or NewSparse (which needs
-// no M), for wider cost ranges.
+// Passing New doesn't mean that solving fits in T. Assign returns
+// [ap.ErrOverflow] if it would overflow T. That happens most often for costs
+// above about a third of the largest value of T, or once removed edges bring
+// M into the costs, but the dual prices can exceed the costs, so it can
+// happen for smaller costs too. Use a wider T in that case. To keep a solver
+// to fall back on, call Copy before Assign or Remove.
 func New[T ap.Integer](costs [][]T) (*LSAP[T], error) {
 	n := len(costs)
 	if n == 0 {
@@ -82,11 +87,14 @@ func New[T ap.Integer](costs [][]T) (*LSAP[T], error) {
 //
 // NewSparse returns an error if n < 1, if n > math.MaxInt32 (the search
 // stores column indices as int32), if an edge is out of range or duplicated,
-// or if its costs could overflow T while solving. It requires
+// or if a cost is the smallest or largest value of T.
 //
-//	4·(n+1)·max |c| ≤ the largest value of T
-//
-// over the costs c of all edges.
+// Passing NewSparse doesn't mean that solving fits in T. Assign returns
+// [ap.ErrOverflow] if it would overflow T. That happens most often for costs
+// above about a fifth of the largest value of T, but the dual prices can
+// exceed the costs, so it can happen for smaller costs too. Use a wider T in
+// that case. To keep a solver to fall back on, call Copy before Assign or
+// Remove.
 func NewSparse[T ap.Integer](n int, edges []ap.Edge[T]) (*LSAP[T], error) {
 	s, err := newSparse(n, edges)
 	if err != nil {
@@ -99,6 +107,13 @@ func NewSparse[T ap.Integer](n int, edges []ap.Edge[T]) (*LSAP[T], error) {
 // removed edges, or edges missing from a sparse solver, leave no feasible
 // assignment. A removed or missing edge never appears in the returned
 // assignment.
+//
+// Assign returns [ap.ErrOverflow] if solving would overflow T; see [New] and
+// [NewSparse]. Once it does, every later call to Assign on the solver, or on
+// a copy made from it afterwards, returns ap.ErrOverflow too. If removed
+// edges, or edges missing from a sparse solver, leave no feasible assignment,
+// and proving that would overflow T, Assign may return ap.ErrOverflow instead
+// of ap.ErrInfeasible.
 func (a *LSAP[T]) Assign() (ap.Permutation, error) {
 	return a.k.assign()
 }
