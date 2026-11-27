@@ -161,8 +161,8 @@ func abs[T ap.Integer](x T) T {
 // So path checks only d ≤ b − u[i] and d ≤ v[j] + b. With |u[i]|, |v[j]| ≤ b,
 // both right-hand sides lie in [0, 2b] and can't overflow. path also lowers
 // each unlabelled pi[j] by d, and pi[j] ≥ d, so pi[j] − d ≥ 0. increase
-// doesn't touch the dual prices. fix(i, j, false) doesn't either, but it can
-// raise A, which lowers b. fix(i, j, true) sets u[i] = a[i][j] − v[j], which
+// doesn't touch the dual prices. fix(i, j, false) doesn't either, but unless a
+// required edge already blocks (i, j), it can raise A, which lowers b. fix(i, j, true) sets u[i] = a[i][j] − v[j], which
 // can leave the margin. So assign recomputes b and rechecks every dual price
 // before solving.
 //
@@ -300,6 +300,9 @@ func (a *dense[T]) fix(i, j int, value bool) {
 	if a.fixCol != nil && a.fixCol[i] == j {
 		a.conflict = true
 		return
+	}
+	if a.blocked(i, j) {
+		return // already unavailable; removing it would only shrink the margin
 	}
 	a.remove(i, j)
 }

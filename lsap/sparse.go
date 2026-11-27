@@ -524,6 +524,9 @@ func (a *sparse[T]) fix(i, j int, value bool) {
 		a.setConflict()
 		return
 	}
+	if a.blocked(i, j) {
+		return // already unavailable; nothing to mark
+	}
 	a.remove(i, j)
 }
 

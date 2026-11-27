@@ -131,7 +131,10 @@ func (a *LSAP[T]) Cost() T {
 // constraints of the U and V sets, which satisfy complementary slackness with
 // the assignment returned by Assign. They are meaningful only after a
 // successful call to Assign, and undefined before any call to Assign or after
-// a call to Assign that returns an error.
+// a call to Assign that returns an error. Edges that share a row or column
+// with a required edge may have negative reduced cost, so the prices are dual
+// feasible on the remaining edges only; ReducedCost reports those edges as
+// unavailable.
 func (a *LSAP[T]) DualPrices() ap.DualPrices[T] {
 	return a.k.dualPrices()
 }

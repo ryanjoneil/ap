@@ -122,7 +122,7 @@ func TestIsolated(t *testing.T) {
 }
 
 // Review Focus 4.
-func TestRemoveWholeRow(t *testing.T) {
+func TestFixWholeRow(t *testing.T) {
 	a, _ := lbap.NewSparse(2, []ap.Edge[int64]{
 		{U: 0, V: 0, Cost: 1}, {U: 0, V: 1, Cost: 2}, {U: 1, V: 0, Cost: 3}, {U: 1, V: 1, Cost: 4},
 	})
@@ -139,10 +139,10 @@ func TestRemoveWholeRow(t *testing.T) {
 	}
 }
 
-// TestRemoveIncremental repeatedly removes an assigned edge, plus an arbitrary
-// other edge (assigned or not, possibly already removed) and some no-ops, and
+// TestFixIncremental repeatedly forbids an assigned edge, plus an arbitrary
+// other edge (assigned or not, possibly already forbidden) and some no-ops, and
 // compares each re-solve with brute force on the shrinking mask.
-func TestRemoveIncremental(t *testing.T) {
+func TestFixIncremental(t *testing.T) {
 	rng := rand.New(rand.NewPCG(2, 2))
 	for trial := range 300 {
 		n := 2 + rng.IntN(5)
@@ -181,8 +181,8 @@ func TestRemoveIncremental(t *testing.T) {
 	}
 }
 
-// Removing an edge outside the assignment keeps the cached solution.
-func TestRemoveUnassignedKeepsSolution(t *testing.T) {
+// Forbidding an edge outside the assignment keeps the cached solution.
+func TestForbidUnassignedKeepsSolution(t *testing.T) {
 	c := [][]int64{{1, 9}, {9, 1}}
 	a, _ := lbap.New(c)
 	before, _ := a.Assign()

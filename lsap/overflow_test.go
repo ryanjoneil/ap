@@ -533,3 +533,25 @@ func checkSameCost[T ap.Integer](
 	}
 	return a64.Cost()
 }
+
+// Forbidding an edge that a required edge already blocks, in its row or its
+// column, changes nothing, so it must not shrink the dense margin. Here A = 40
+// and B = 43, and the duals are v = [−40, −40]. Forbidding an edge would
+// raise A to M = 81 and lower B to 22, and Assign would return ErrOverflow.
+func TestFixBlockedEdgeKeepsMarginInt8(t *testing.T) {
+	for name, blocked := range map[string][2]int{"row": {0, 1}, "column": {1, 0}} {
+		a, err := lsap.New([][]int8{{-40, 0}, {0, -40}})
+		if err != nil {
+			t.Fatalf("%s: New: %v", name, err)
+		}
+		if _, err := a.Assign(); err != nil {
+			t.Fatalf("%s: Assign: %v", name, err)
+		}
+		a.Fix(0, 0, true)
+		a.Fix(blocked[0], blocked[1], false)
+		p, err := a.Assign()
+		if err != nil || a.Cost() != -80 {
+			t.Errorf("%s: Assign = (%v, %v), cost %v; want cost -80", name, p, err, a.Cost())
+		}
+	}
+}

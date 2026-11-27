@@ -174,8 +174,9 @@ func (a *LBAP[T]) test(L int) bool {
 // returns [ap.ErrInfeasible] if the fixes conflict (see [LBAP.Fix]), or if
 // forbidden edges, required edges, or edges missing from a sparse solver leave
 // no feasible assignment. A forbidden or missing edge never appears in the
-// returned assignment, and every required edge does. Among optimal assignments, which one is
-// returned is deterministic but otherwise unspecified.
+// returned assignment, and every required edge does. Among optimal
+// assignments, which one is returned is deterministic but otherwise
+// unspecified.
 //
 // Assign is the threshold algorithm: it binary searches the distinct costs
 // for the smallest threshold whose edges contain a perfect matching. After
@@ -236,9 +237,9 @@ func (a *LBAP[T]) Cost() T {
 // edge is missing from a sparse solver.
 //
 // Every other edge in the row or column of a required edge reads as
-// forbidden: it never appears in an assignment. Forbidding or requiring an
-// edge outside the current assignment keeps that assignment, which stays
-// optimal, so the next Assign returns at once. Otherwise the next Assign
+// forbidden: it never appears in an assignment. Forbidding an edge outside the
+// current assignment, or requiring one in it, keeps that assignment, which
+// stays optimal, so the next Assign returns at once. Otherwise the next Assign
 // re-solves, searching only thresholds at or above the previous bottleneck
 // and warm-starting from the rest of the assignment. Forbidding an edge takes
 // time linear in the degree of row u. Requiring one also scans the live
@@ -270,13 +271,34 @@ func (a *LBAP[T]) Fix(u, v int, value bool) {
 		return
 	}
 	a.fixCol[u], a.fixRow[v] = v, u
+	a.keepOnly(u, v)
 	for w := range a.n {
-		if w != v {
-			a.forbid(u, w)
-		}
 		if w != u {
 			a.forbid(w, v)
 		}
+	}
+}
+
+// keepOnly forbids every live edge of row u except (u, v), in one pass. Edge
+// (u, v) must be live.
+func (a *LBAP[T]) keepOnly(u, v int) {
+	lo := a.start[u]
+	e := lo + slices.Index(a.adj[lo:lo+a.rowLen[u]], v)
+	c := a.cost[e]
+	// Move the entry to the front of the row; the forbidden live entries
+	// shift right and stay in cost order ahead of the dead ones.
+	copy(a.adj[lo+1:e+1], a.adj[lo:e])
+	copy(a.cost[lo+1:e+1], a.cost[lo:e])
+	a.adj[lo], a.cost[lo] = v, c
+	a.rowLen[u] = 1
+	if e < a.end[u] {
+		a.end[u] = lo + 1
+	} else {
+		a.end[u] = lo
+	}
+	if m := a.st.MateU[u]; m >= 0 && m != v {
+		a.st.Unmatch(u)
+		a.valid = false
 	}
 }
 

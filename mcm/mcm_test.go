@@ -126,11 +126,11 @@ func TestMatchReturnsCopy(t *testing.T) {
 	}
 }
 
-// TestRemoveIncremental removes matched edges one at a time, then random
+// TestFixIncremental forbids matched edges one at a time, then random
 // edges (matched or not, repeated, out of range), checking against brute
-// force each time. Removing a matched edge shrinks its row's window while
+// force each time. Forbidding a matched edge shrinks its row's window while
 // the edge stays in Adj past end[u].
-func TestRemoveIncremental(t *testing.T) {
+func TestFixIncremental(t *testing.T) {
 	rng := rand.New(rand.NewPCG(2, 2))
 	for range 300 {
 		nU, nV := 1+rng.IntN(7), 1+rng.IntN(7)
@@ -168,7 +168,7 @@ func TestRemoveIncremental(t *testing.T) {
 			if got := match(t, m); got[u] == v {
 				t.Fatalf("Match pairs %d with removed %d", u, v)
 			}
-			// Remove an arbitrary other edge, matched or not.
+			// Forbid an arbitrary other edge, matched or not.
 			ru, rv := rng.IntN(nU), rng.IntN(nV)
 			m.Fix(ru, rv, false)
 			ok[ru][rv] = false
@@ -179,7 +179,7 @@ func TestRemoveIncremental(t *testing.T) {
 	}
 }
 
-func TestRemoveUnmatchedKeepsSolved(t *testing.T) {
+func TestForbidUnmatchedKeepsSolved(t *testing.T) {
 	m, _ := mcm.New([][]bool{{true, true}, {false, true}})
 	if got := match(t, m); !slices.Equal(got, []int{0, 1}) {
 		t.Fatalf("got %v", got)
