@@ -1,6 +1,9 @@
 package bruteforce
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 var c = [][]int64{
 	{10, 15, 12},
@@ -31,5 +34,18 @@ func TestMaxMatching(t *testing.T) {
 	}
 	if m := MaxMatching([][]bool{{true}, {true}}); m != 1 {
 		t.Errorf("MaxMatching = %v; want 1", m)
+	}
+}
+
+func TestAllSums(t *testing.T) {
+	c := [][]int64{{1, 2}, {3, 4}}
+	if got := AllSums(c, nil); !slices.Equal(got, []int64{5, 5}) {
+		t.Errorf("AllSums = %v; want [5 5]", got)
+	}
+	if got := AllSums(c, [][]bool{{false, true}, {true, true}}); !slices.Equal(got, []int64{5}) {
+		t.Errorf("AllSums with (0,0) forbidden = %v; want [5]", got)
+	}
+	if got := AllSums(c, [][]bool{{false, false}, {true, true}}); got != nil {
+		t.Errorf("AllSums with row 0 forbidden = %v; want nil", got)
 	}
 }
