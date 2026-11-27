@@ -1,6 +1,6 @@
 # k-best assignments (`klsap`) and `lsap.Fix`: design
 
-Issue #24. Milestone v0.6.
+Issues #24 (k-best) and #38 (`Fix`). Milestone v0.6.
 
 ## Why
 
@@ -99,6 +99,25 @@ ignored `Cost` field.
   update loop. The sparse kernel skips required columns in its search.
 - The overflow margin and checks from #34 are unchanged. Required rows
   and columns take part in them like any others.
+
+### `lbap.Fix` and `mcm.Fix` (issue #38)
+
+The owner chose to replace `Remove` with `Fix` in all three solvers, so
+that the packages stay alike (`internal/conformance` checks their shared
+shape).
+
+- Same signature and rules as `lsap.Fix`. `Fix(u, v, false)` is today's
+  `Remove`. Conflicting fixes make `Assign` return `ap.ErrInfeasible`.
+- `Fix(u, v, true)` forbids every other live edge in row u and column v
+  and records the requirement, so that later conflicts are detected.
+  Neither solver feeds k-best, so this may take time linear in the number
+  of edges. Any maximum matching of the reduced graph contains (u, v),
+  since u and v have no other edges.
+- `mcm.Match` gains an error: `Match() ([]int, error)`. It returns
+  `ap.ErrInfeasible` when the required edges can't all be in one
+  matching, which is exactly when they conflict, and otherwise a maximum
+  matching that contains every required edge. `Size` is 0 after a
+  conflict.
 
 ### `klsap`: k-best linear sum assignment
 
@@ -206,6 +225,8 @@ benchmark sizes move into opt-in `go test -bench` benchmarks, and
 - Edges sharing a required edge's row or column read as forbidden in
   `ReducedCost`.
 - `cmd/klsap` requires `-k` and prints no dual prices.
+- `mcm.Match` returns an error, so that conflicting fixes have a way to
+  be reported.
 
 ## Left to the builder
 
