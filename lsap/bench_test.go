@@ -55,7 +55,7 @@ func benchIncremental(b *testing.B, a *lsap.LSAP[int64], rows []int) {
 
 	p := mustAssign(b, a)
 	for _, u := range rows {
-		a.Remove(u, p[u])
+		a.Fix(u, p[u], false)
 		p = mustAssign(b, a)
 	}
 }

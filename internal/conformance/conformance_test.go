@@ -9,7 +9,6 @@ import (
 
 type solver[S any] interface {
 	Assign() (ap.Permutation, error)
-	Remove(u, v int)
 	Copy() S
 }
 

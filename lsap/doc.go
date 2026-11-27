@@ -11,8 +11,9 @@
 //
 // There are two solvers. [New] builds a dense solver from a complete n×n cost
 // matrix, and [NewSparse] builds a sparse solver from a list of edges, where
-// a missing edge is forbidden. Both support Remove, incremental re-solve and
-// Copy, and both report dual prices and reduced costs.
+// a missing edge is forbidden. Both support Fix, which forbids or requires an
+// edge, incremental re-solve and Copy, and both report dual prices and reduced
+// costs.
 //
 // The dense solver is a port of the Fortran code APC for the dense AP given
 // in:

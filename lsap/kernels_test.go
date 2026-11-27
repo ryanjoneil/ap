@@ -152,7 +152,7 @@ func TestDuals(t *testing.T) {
 			for u := range mask {
 				for v := range mask[u] {
 					if !mask[u][v] {
-						k.a.Remove(u, v)
+						k.a.Fix(u, v, false)
 					}
 				}
 			}
@@ -163,7 +163,7 @@ func TestDuals(t *testing.T) {
 	}
 }
 
-// runIncremental interleaves Assign and Remove on a until the problem becomes
+// runIncremental interleaves Assign and Fix(u, v, false) on a until the problem becomes
 // infeasible, checking every Assign against brute force on the current mask.
 // If alternate is true, every other step removes a random live edge rather
 // than an assigned edge.
@@ -201,7 +201,7 @@ func runIncremental(t *testing.T, name string, a *lsap.LSAP[int64], c [][]int64,
 			v = p[u]
 		}
 		mask[u][v] = false
-		a.Remove(u, v)
+		a.Fix(u, v, false)
 	}
 }
 

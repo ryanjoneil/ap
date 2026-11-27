@@ -42,6 +42,14 @@ import (
 //     incrementally from the current duals and partial assignment. Removing
 //     an edge keeps the duals feasible; removing an assigned edge frees its
 //     row and column for the next search.
+//   - Edges can be required. Requiring edge (i, j) assigns i to j and sets
+//     u[i] so that the edge has reduced cost 0. Between searches column j
+//     keeps the label minT, the smallest value of T, which no relaxation
+//     beats, and the search skips it among the columns adjacent to s. So it
+//     never scans column j, never reaches row i, whose only way in is column
+//     j, and never changes u[i] or v[j]. The rest of the problem is then
+//     solved with row i and column j deleted, and the dual prices satisfy
+//     complementary slackness on every required edge.
 //   - The book does its arithmetic in unbounded integers. Here the kernel keeps
 //     every dual price within the margin b, and stops a search at the first
 //     label above the cap l, so that the unchecked labels and reduced costs
@@ -65,19 +73,23 @@ type sparse[T ap.Integer] struct {
 	c       []T        // c[e] = cost of edge e, parallel to g.Adj; shared
 	removed []bool     // removed[e] = true if edge e is removed; nil if none
 
+	fixCol []int // fixCol[i] = column required for row i, -1 if none; nil if none at all
+	fixRow []int // fixRow[j] = row required for column j, -1 if none; nil if none at all
+
 	u       []T   // u[i] = dual price for row i
 	v       []T   // v[j] = dual price for column j
 	rowMate []int // rowMate[i] = column assigned to row i, -1 if unassigned
 	rowEdge []int // rowEdge[i] = edge (i, rowMate[i]), if rowMate[i] ≥ 0
 	colMate []int // colMate[j] = row assigned to column j, -1 if unassigned
 
-	// infeasible is set when some row has no augmenting path, or when a row or
-	// column has no edges. Removals only shrink the graph, so it stays set.
-	// It and overflow are never both set.
+	// infeasible is set when some row has no augmenting path, when a row or
+	// column has no edges, or when the fixes conflict. Fixes only shrink the
+	// problem, so it stays set. It and overflow are never both set.
 	infeasible bool
 
 	// Scratch space for augment, allocated on the first call to assign. Between
-	// searches, dist[j] == maxT and done[j] == false for every column j.
+	// searches, done[j] == false for every column j, and dist[j] is minT, the
+	// smallest value of T, if column j is required, and maxT otherwise.
 	dist    []T        // dist[j] = shortest path label of column j (π_j)
 	pred    []int      // pred[j] = row preceding column j on its path
 	done    []bool     // done[j] = true if column j is scanned (j ∈ SV)
@@ -159,11 +171,12 @@ func newSparse[T ap.Integer](n int, edges []ap.Edge[T]) (*sparse[T], error) {
 // edges can turn ap.ErrInfeasible into ap.ErrOverflow.
 //
 // The dual prices change only in initialize, which checks each one against b
-// before using it, and in the dual update, which raises u[s] by δ and, for
-// each scanned column j, raises u[colMate[j]] and lowers v[j] by r = δ −
-// dist[j]. Both δ and r lie in [0, l], since 0 ≤ dist[j] ≤ δ ≤ l. So the
-// update checks only δ ≤ b − u[s], r ≤ b − u[colMate[j]] and r ≤ v[j] + b,
-// whose right-hand sides lie in [0, 2b] and can't overflow.
+// before using it, in require, which checks u[i] = c[e] − v[j] against b
+// before setting it (see require), and in the dual update, which raises u[s]
+// by δ and, for each scanned column j, raises u[colMate[j]] and lowers v[j]
+// by r = δ − dist[j]. Both δ and r lie in [0, l], since 0 ≤ dist[j] ≤ δ ≤ l.
+// So the update checks only δ ≤ b − u[s], r ≤ b − u[colMate[j]] and
+// r ≤ v[j] + b, whose right-hand sides lie in [0, 2b] and can't overflow.
 //
 // No cost is the smallest value of T, so A ≤ maxT and maxT − A − 1 doesn't
 // overflow. If A = maxT, then there is no margin, and margin returns −1 for
@@ -272,6 +285,12 @@ func (a *sparse[T]) assign() (ap.Permutation, error) {
 		for j := range a.dist {
 			a.dist[j] = a.maxT
 		}
+		minT := intmath.MinOf[T]()
+		for j, r := range a.fixRow {
+			if r >= 0 {
+				a.dist[j] = minT
+			}
+		}
 	}
 	for s := 0; s < a.n; s++ {
 		if a.rowMate[s] < 0 && !a.augment(s) {
@@ -318,23 +337,33 @@ func (a *sparse[T]) assign() (ap.Permutation, error) {
 // If either check fails, augment sets a.overflow and returns false, without
 // augmenting. It may then have updated some of the dual prices, but each
 // stays within the margin.
+//
+// As a departure from the source, augment never labels a required column
+// (see sparse). Their labels stay minT, so the relaxation's comparison
+// rejects them, and the first loop, which doesn't compare, skips them. A
+// label of −1 would not do: after the dual prices move, an edge into a
+// required column can have negative reduced cost. Every label augment
+// computes is at least −(A+2b) > minT (see margin), so none beats minT.
 func (a *sparse[T]) augment(s int) bool {
 	g, c, u, v := a.g, a.c, a.u, a.v
 	dist, pred, done := a.dist, a.pred, a.done
-	removed, colMate := a.removed, a.colMate
+	removed, fixed, colMate := a.removed, a.fixRow, a.colMate
 	maxT, l := a.maxT, a.l
 	h := a.heap[:0]
 	touched := a.touched[:0]
 	scanned := a.scanned[:0]
 
-	// Label the columns adjacent to s. There are no duplicate edges, so each
-	// column is labelled once here.
+	// Label the columns adjacent to s, apart from the required ones. There
+	// are no duplicate edges, so each column is labelled once here.
 	us := u[s]
 	for e := g.Start[s]; e < g.Start[s+1]; e++ {
 		if removed != nil && removed[e] {
 			continue
 		}
 		j := g.Adj[e]
+		if fixed != nil && fixed[j] >= 0 {
+			continue
+		}
 		d := c[e] - us - v[j]
 		dist[j] = d
 		pred[j] = s
@@ -371,7 +400,8 @@ func (a *sparse[T]) augment(s int) bool {
 				continue
 			}
 			// Departure: no test of done[k]. A scanned column k has
-			// dist[k] ≤ dist[j] ≤ nd, so the comparison rejects it.
+			// dist[k] ≤ dist[j] ≤ nd, so the comparison rejects it, as it
+			// does a required column, whose label is minT.
 			k := g.Adj[e]
 			if nd := d + c[e] - v[k]; nd < dist[k] {
 				if dist[k] == maxT {
@@ -461,16 +491,107 @@ func (a *sparse[T]) live(i, j int) int {
 	return e
 }
 
+// blocked reports whether edge (i, j) is unavailable because row i or column
+// j is required by a different edge. i and j must be in range.
+func (a *sparse[T]) blocked(i, j int) bool {
+	if a.fixCol == nil {
+		return false
+	}
+	ci, rj := a.fixCol[i], a.fixRow[j]
+	return (ci >= 0 && ci != j) || (rj >= 0 && rj != i)
+}
+
 func (a *sparse[T]) reducedCost(i, j int) (T, bool) {
 	e := a.live(i, j)
-	if e < 0 {
+	if e < 0 || a.blocked(i, j) {
 		return 0, false
 	}
 	return a.c[e] - a.u[i] - a.v[j], true
 }
 
+// fix requires edge (i, j) if value is true, and forbids it otherwise. A
+// conflict sets infeasible, unless overflow is already set, and changes
+// nothing else.
+func (a *sparse[T]) fix(i, j int, value bool) {
+	if i < 0 || i >= a.n || j < 0 || j >= a.n {
+		return
+	}
+	if value {
+		a.require(i, j)
+		return
+	}
+	if a.fixCol != nil && a.fixCol[i] == j {
+		a.setConflict()
+		return
+	}
+	a.remove(i, j)
+}
+
+// setConflict marks the problem infeasible, unless overflow is already set,
+// so that the two are never both set and overflow stays sticky.
+func (a *sparse[T]) setConflict() {
+	if !a.overflow {
+		a.infeasible = true
+	}
+}
+
+// require requires edge (i, j). It unassigns row i's column and column j's
+// row, unless either is already the other, assigns i to j, sets u[i] so that
+// the edge has reduced cost 0, and gives column j the label minT if the
+// scratch space exists. If i was already assigned to j, then u[i] is
+// unchanged, since assigned edges have reduced cost 0.
+//
+// u[i] = c[e] − v[j] lies in [−(A+b), A+b], so it can't overflow, but it can
+// leave the margin, which never changes. So require checks it, and sets
+// overflow if it is outside. It does no arithmetic once overflow or
+// infeasible is set: overflow may have left a v[j] outside the margin, and
+// either flag makes every later solve fail anyway.
+func (a *sparse[T]) require(i, j int) {
+	if a.fixCol != nil && a.fixCol[i] == j {
+		return
+	}
+	e := a.live(i, j)
+	if (a.fixCol != nil && (a.fixCol[i] >= 0 || a.fixRow[j] >= 0)) || e < 0 {
+		a.setConflict()
+		return
+	}
+	if a.fixCol == nil {
+		a.fixCol = make([]int, a.n)
+		a.fixRow = make([]int, a.n)
+		for k := range a.fixCol {
+			a.fixCol[k] = -1
+			a.fixRow[k] = -1
+		}
+	}
+
+	if k := a.rowMate[i]; k >= 0 && k != j {
+		a.colMate[k] = -1
+	}
+	if r := a.colMate[j]; r >= 0 && r != i {
+		a.rowMate[r] = -1
+	}
+	a.rowMate[i] = j
+	a.rowEdge[i] = e
+	a.colMate[j] = i
+	a.fixCol[i] = j
+	a.fixRow[j] = i
+	if a.dist != nil {
+		a.dist[j] = intmath.MinOf[T]()
+	}
+
+	if a.overflow || a.infeasible {
+		return
+	}
+	if ui := a.c[e] - a.v[j]; a.inMargin(ui) {
+		a.u[i] = ui
+	} else {
+		a.overflow = true
+	}
+}
+
 // remove marks edge (i, j) removed. If the edge is assigned, it is unassigned,
-// so the next solve re-optimizes row i.
+// so the next solve re-optimizes row i. It is a no-op if the edge is missing
+// or already removed.
 func (a *sparse[T]) remove(i, j int) {
 	e := a.live(i, j)
 	if e < 0 {
@@ -487,12 +608,18 @@ func (a *sparse[T]) remove(i, j int) {
 }
 
 // copy shares the graph and costs, which are never modified, and clones the
-// removals and the primal and dual solution. Scratch space is allocated by
-// the copy's first call to assign.
+// removals, the requirements and the primal and dual solution. Scratch space
+// is allocated by the copy's first call to assign, which labels the required
+// columns.
 func (a *sparse[T]) copy() kernel[T] {
 	var removed []bool
 	if a.removed != nil {
 		removed = append([]bool(nil), a.removed...)
+	}
+	var fixCol, fixRow []int
+	if a.fixCol != nil {
+		fixCol = append([]int(nil), a.fixCol...)
+		fixRow = append([]int(nil), a.fixRow...)
 	}
 	return &sparse[T]{
 		maxT:       a.maxT,
@@ -505,6 +632,8 @@ func (a *sparse[T]) copy() kernel[T] {
 		g:          a.g,
 		c:          a.c,
 		removed:    removed,
+		fixCol:     fixCol,
+		fixRow:     fixRow,
 		u:          append([]T(nil), a.u...),
 		v:          append([]T(nil), a.v...),
 		rowMate:    append([]int(nil), a.rowMate...),
