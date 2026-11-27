@@ -3,8 +3,9 @@
 This package provides data structures common to formulating and solving
 [assignment problems][ap], as well as codes for solving three variants: the
 linear sum assignment problem (LSAP), maximum cardinality bipartite matching
-(MCM), and the linear bottleneck assignment problem (LBAP). More details about
-these can be found in:
+(MCM), and the linear bottleneck assignment problem (LBAP), and for ranking the
+k best LSAP assignments (k-best LSAP). More details about these can be found
+in:
 
 ```text
 Rainer Burkard, Mauro Dell'Amico, and Silvano Martello.
@@ -27,16 +28,17 @@ possible in a bipartite graph, no two of which share a vertex.
 
 ## Quick Start: CLI
 
-There is one binary per solver: `lsap`, `mcm` and `lbap`. Install them using
-Go.
+There is one binary per solver: `lsap`, `mcm`, `lbap` and `klsap`. Install them
+using Go.
 
 ```bash
 go install github.com/ryanjoneil/ap/cmd/lsap@latest
 go install github.com/ryanjoneil/ap/cmd/mcm@latest
 go install github.com/ryanjoneil/ap/cmd/lbap@latest
+go install github.com/ryanjoneil/ap/cmd/klsap@latest
 ```
 
-All three read one JSON value from standard input and write one JSON object to
+All of them read one JSON value from standard input and write one JSON object to
 standard output. A top-level array is dense input, and a top-level object is
 sparse input. The output always has a `"status"` of `"optimal"` or
 `"infeasible"`, and both exit 0. Invalid input or a bad flag writes
@@ -253,6 +255,62 @@ Flags:
     	multiply costs by k and round them to integers, to accept non-integer costs (0, the default, means off)
 ```
 
+### `klsap`
+
+`klsap` takes the same input as `lsap` and a required `-k`, and lists the `k`
+best assignments in nondecreasing order of cost. If there are fewer than `k`
+assignments it lists them all, and if there are none the status is
+`"infeasible"` with an empty list. `-cycles` and `-matrix` apply to each
+assignment.
+
+```bash
+echo '[[90,76,75,70],[35,85,55,65],[125,95,90,105],[45,110,95,115]]' | klsap -k 3
+```
+
+```json
+{"status":"optimal","assignments":[{"cost":265,"permutation":[3,2,1,0]},{"cost":276,"permutation":[1,3,2,0]},{"cost":280,"permutation":[2,3,1,0]}]}
+```
+
+```bash
+klsap -h
+```
+
+```text
+klsap ranks the k best assignments of a linear sum assignment problem, given
+a square cost matrix, in nondecreasing order of cost.
+
+Input is a dense cost matrix, a JSON array of arrays, or a sparse problem,
+a JSON object {"n": N, "edges": [[u, v, cost], ...]}. Costs must be integers
+unless -scale k is given, which multiplies each cost by k and rounds it to an
+integer. Reported costs are divided by k. The flag -k is required.
+The output has a "status" of "optimal" or "infeasible", and a list of
+"assignments". If there are fewer than k assignments, all are listed.
+
+Usage:
+
+klsap -k 3 < input.json -cycles > output.json
+echo '[[1.5,2],[2,1.5]]' | klsap -k 2 -scale 10
+
+cat <<EOF | klsap -k 3 | jq
+[
+	[  90,  76,  75,  70 ],
+	[  35,  85,  55,  65 ],
+	[ 125,  95,  90, 105 ],
+	[  45, 110,  95, 115 ]
+]
+EOF
+
+Flags:
+  -cycles
+    	output cyclic assignment form
+  -k int
+    	number of assignments to rank (required, at least 1)
+  -matrix
+    	output matrix assignment form
+  -scale k
+    	multiply costs by k and round them to integers, to accept non-integer costs (0, the default, means off)
+```
+
 ## Quick Start: Packages
 
 Examples are available in the [package docs][docs].
@@ -410,6 +468,44 @@ if err != nil {
 fmt.Println(p, a.Cost()) // [1 2 0] 23
 ```
 
+### `ap/klsap`: k-best assignment ranking
+
+Package `ap/klsap` ranks the k best assignments of an LSAP with Murty's
+method, solving each subproblem incrementally with `lsap`. It offers `New`,
+`NewSparse`, `Next` and `Cost`. Each `Next` returns the next assignment in
+nondecreasing order of cost, and `ap.ErrInfeasible` once there are no more,
+whether after k or because the problem has fewer assignments.
+
+```bash
+go get github.com/ryanjoneil/ap/klsap
+```
+
+```go
+a, err := klsap.New([][]int{
+    {90, 76, 75, 70},
+    {35, 85, 55, 65},
+    {125, 95, 90, 105},
+    {45, 110, 95, 115},
+}, 3)
+if err != nil {
+    log.Fatal(err)
+}
+
+for {
+    p, err := a.Next()
+    if errors.Is(err, ap.ErrInfeasible) {
+        break // No more assignments.
+    }
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println(p, a.Cost())
+}
+// [3 2 1 0] 265
+// [1 3 2 0] 276
+// [2 3 1 0] 280
+```
+
 ## Benchmarks
 
 `bench/` compares `lsap` with SciPy and OR-Tools on the instance classes of
@@ -453,6 +549,15 @@ R.E. Machol and M. Wien. A hard assignment problem. Oper. Res.,
 24:190-192, 1976.
 
 R.E. Machol and M. Wien. Errata. Oper. Res., 25:364, 1977.
+
+Katta G. Murty.
+"An algorithm for ranking all the assignments in order of increasing cost."
+Operations Research 16(3) (1968): 682-687.
+
+C.R. Pedersen, L.R. Nielsen, and K.A. Andersen.
+"A note on ranking assignments using reoptimization."
+Technical Report 2005/2, Department of Mathematical Sciences,
+University of Aarhus (2005).
 ```
 
 [ap]:   https://en.wikipedia.org/wiki/Assignment_problem

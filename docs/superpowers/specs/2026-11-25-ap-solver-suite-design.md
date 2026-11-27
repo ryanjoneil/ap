@@ -79,7 +79,7 @@ Each milestone is a GitHub milestone and a release.
 | Milestone | Contents |
 |---|---|
 | **v0.5** | `ap`/`lsap` API cleanup; sparse `lsap`; shared internal plumbing and CLI conventions; `mcm` (bipartite matching); `lbap` (bottleneck assignment, closes #2); benchmark instance generators. |
-| v0.6 | k-best assignments (Murty's ranking), built on incremental `lsap`. |
+| v0.6 | `klsap`: k-best assignments (Murty's ranking), built on incremental `lsap`; `Fix` replaces `Remove` in `lsap`, `lbap` and `mcm` (#38). |
 | v0.7 | Quadratic assignment (QAP): strong heuristics for large instances, plus an exact branch-and-bound with the Gilmore–Lawler bound for small instances (n ≤ about 30). Benchmarked against QAPLIB's best-known solutions. |
 | Later, as wanted | Rectangular and k-cardinality LSAP; a one-shot LSAP algorithm if benchmarks call for it; balanced and lexicographic bottleneck assignment; semi-assignment; axial 3-index assignment. |
 
