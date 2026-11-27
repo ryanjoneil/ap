@@ -35,6 +35,15 @@ func pairsOf(ok [][]bool) []ap.Pair {
 	return ps
 }
 
+func match(t *testing.T, m *mcm.MCM) []int {
+	t.Helper()
+	mate, err := m.Match()
+	if err != nil {
+		t.Fatalf("Match: %v", err)
+	}
+	return mate
+}
+
 func checkValid(t *testing.T, mate []int, ok [][]bool) int {
 	t.Helper()
 	seen := map[int]bool{}
@@ -64,7 +73,7 @@ func TestMatchBruteForce(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		mate := m.Match()
+		mate := match(t, m)
 		n := checkValid(t, mate, ok)
 		if want := bruteforce.MaxMatching(ok); m.Size() != want || n != want {
 			t.Fatalf("size %d (pairs %d) want %d", m.Size(), n, want)
@@ -110,9 +119,9 @@ func TestSizeBeforeMatch(t *testing.T) {
 
 func TestMatchReturnsCopy(t *testing.T) {
 	m, _ := mcm.New([][]bool{{true}})
-	a := m.Match()
+	a := match(t, m)
 	a[0] = 99
-	if b := m.Match(); b[0] != 0 {
+	if b := match(t, m); b[0] != 0 {
 		t.Fatalf("Match not a copy: %v", b)
 	}
 }
@@ -134,7 +143,7 @@ func TestRemoveIncremental(t *testing.T) {
 			t.Fatal(err)
 		}
 		for {
-			mate := m.Match()
+			mate := match(t, m)
 			checkValid(t, mate, ok)
 			if m.Size() != bruteforce.MaxMatching(ok) {
 				t.Fatalf("size %d want %d", m.Size(), bruteforce.MaxMatching(ok))
@@ -150,20 +159,20 @@ func TestRemoveIncremental(t *testing.T) {
 				break
 			}
 			v := mate[u]
-			m.Remove(u, v)
+			m.Fix(u, v, false)
 			ok[u][v] = false
-			m.Remove(u, v) // no-op
-			m.Remove(-1, 0)
-			m.Remove(0, nV)
-			m.Remove(nU, 0)
-			if got := m.Match(); got[u] == v {
+			m.Fix(u, v, false) // no-op
+			m.Fix(-1, 0, false)
+			m.Fix(0, nV, false)
+			m.Fix(nU, 0, false)
+			if got := match(t, m); got[u] == v {
 				t.Fatalf("Match pairs %d with removed %d", u, v)
 			}
 			// Remove an arbitrary other edge, matched or not.
 			ru, rv := rng.IntN(nU), rng.IntN(nV)
-			m.Remove(ru, rv)
+			m.Fix(ru, rv, false)
 			ok[ru][rv] = false
-			if got := m.Match(); got[ru] == rv {
+			if got := match(t, m); got[ru] == rv {
 				t.Fatalf("Match pairs %d with removed %d", ru, rv)
 			}
 		}
@@ -172,10 +181,10 @@ func TestRemoveIncremental(t *testing.T) {
 
 func TestRemoveUnmatchedKeepsSolved(t *testing.T) {
 	m, _ := mcm.New([][]bool{{true, true}, {false, true}})
-	if got := m.Match(); !slices.Equal(got, []int{0, 1}) {
+	if got := match(t, m); !slices.Equal(got, []int{0, 1}) {
 		t.Fatalf("got %v", got)
 	}
-	m.Remove(0, 1)
+	m.Fix(0, 1, false)
 	if m.Size() != 2 {
 		t.Fatalf("Size %d want 2", m.Size())
 	}
@@ -184,15 +193,15 @@ func TestRemoveUnmatchedKeepsSolved(t *testing.T) {
 func TestCopyIndependent(t *testing.T) {
 	ok := [][]bool{{true, true, false}, {true, true, true}, {false, true, true}}
 	m, _ := mcm.New(ok)
-	before := m.Match()
+	before := match(t, m)
 	c := m.Copy()
 	for u, v := range before {
-		c.Remove(u, v)
+		c.Fix(u, v, false)
 	}
-	if got := m.Match(); !slices.Equal(got, before) || m.Size() != 3 {
+	if got := match(t, m); !slices.Equal(got, before) || m.Size() != 3 {
 		t.Fatalf("original changed: %v", got)
 	}
-	cm := c.Match()
+	cm := match(t, c)
 	for u, v := range before {
 		if cm[u] == v {
 			t.Fatalf("copy still pairs %d with %d", u, v)
@@ -200,10 +209,10 @@ func TestCopyIndependent(t *testing.T) {
 	}
 	cSize := c.Size()
 	for u, v := range before {
-		m.Remove(u, v)
+		m.Fix(u, v, false)
 	}
-	m.Match()
-	if c.Size() != cSize || !slices.Equal(c.Match(), cm) {
+	match(t, m)
+	if c.Size() != cSize || !slices.Equal(match(t, c), cm) {
 		t.Fatal("copy changed by original")
 	}
 }
@@ -239,17 +248,17 @@ func TestNewCopiesInput(t *testing.T) {
 	adj := [][]bool{{true, true}, {true, true}}
 	pairs := []ap.Pair{{U: 0, V: 0}, {U: 0, V: 1}, {U: 1, V: 0}}
 	m, _ := mcm.New(adj)
-	m.Remove(0, 0)
-	m.Remove(1, 1)
-	m.Match()
+	m.Fix(0, 0, false)
+	m.Fix(1, 1, false)
+	match(t, m)
 	for _, row := range adj {
 		if !row[0] || !row[1] {
 			t.Fatalf("adj modified: %v", adj)
 		}
 	}
 	s, _ := mcm.NewSparse(2, 2, pairs)
-	s.Remove(0, 0)
-	s.Match()
+	s.Fix(0, 0, false)
+	match(t, s)
 	if pairs[0] != (ap.Pair{U: 0, V: 0}) || pairs[1] != (ap.Pair{U: 0, V: 1}) || pairs[2] != (ap.Pair{U: 1, V: 0}) {
 		t.Fatalf("pairs modified: %v", pairs)
 	}

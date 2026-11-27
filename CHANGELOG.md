@@ -9,6 +9,8 @@ New:
 
 Changed:
 
+* #38: Breaking: `Remove` is replaced by `Fix(u, v, value)` in `lsap`, `lbap`
+  and `mcm`, which can also require an edge. `mcm.Match` returns an error.
 * #34: `lsap` detects overflow while solving instead of ruling it out up
   front. `lsap.New` now rejects only a cost equal to `T`'s minimum, or an
   M = n·(maxC − minC) + maxC + 1 that overflows or equals `T`'s maximum. For

@@ -13,19 +13,25 @@ import (
 // one with [New] for an adjacency matrix, or with [NewSparse] for an edge
 // list.
 //
-// After a call to Match or Assign, one can remove edges and call either again
-// to re-solve incrementally. Copy duplicates an MCM, including its current
-// matching, for use in tree search.
+// One can fix edges, removing or requiring them with Fix, before or after
+// calling Match or Assign, which re-solve incrementally. Copy duplicates an
+// MCM, including its current matching, for use in tree search.
 //
 // The results reported by Match and Size are meaningful only after a call to
 // Match or Assign; Size is 0 before any such call. An MCM is not safe for
 // concurrent use. Use Copy to work in parallel.
 type MCM struct {
-	g      *graph.CSR // owned: Remove reorders Adj within each row
+	g      *graph.CSR // owned: Fix reorders Adj within each row
 	end    []int      // row u's allowed columns are g.Adj[g.Start[u]:end[u]]
 	st     *bipartite.State
 	solved bool
 	size   int // size of the matching at the last solve
+
+	// fixCol[u] is the column of the required edge in row u, or −1; fixRow[v]
+	// is the row of the one in column v, or −1. conflict is set by a Fix that
+	// makes the problem infeasible, and is never cleared.
+	fixCol, fixRow []int
+	conflict       bool
 }
 
 // New returns an MCM solver for the bipartite graph in which row u and column v
@@ -57,9 +63,23 @@ func NewSparse(nU, nV int, edges []ap.Pair) (*MCM, error) {
 }
 
 func build(g *graph.CSR) *MCM {
-	m := &MCM{g: g, end: slices.Clone(g.Start[1:]), st: bipartite.New(g.NU, g.NV)}
+	m := &MCM{
+		g:      g,
+		end:    slices.Clone(g.Start[1:]),
+		st:     bipartite.New(g.NU, g.NV),
+		fixCol: minusOnes(g.NU),
+		fixRow: minusOnes(g.NV),
+	}
 	m.st.Greedy(g.Start[:g.NU], m.end, g.Adj)
 	return m
+}
+
+func minusOnes(n int) []int {
+	s := make([]int, n)
+	for i := range s {
+		s[i] = -1
+	}
+	return s
 }
 
 func (m *MCM) solve() {
@@ -71,10 +91,15 @@ func (m *MCM) solve() {
 
 // Match returns a maximum matching as a slice of length |U|: element u is the
 // column matched to row u, or −1 if u is unmatched. It solves first if edges
-// were removed since the last solve. Each call returns a new slice.
-func (m *MCM) Match() []int {
+// were removed or fixed since the last solve, and returns a new slice each
+// call. The matching contains every required edge. Match returns
+// (nil, [ap.ErrInfeasible]) if the fixes conflict (see [MCM.Fix]).
+func (m *MCM) Match() ([]int, error) {
+	if m.conflict {
+		return nil, ap.ErrInfeasible
+	}
 	m.solve()
-	return slices.Clone(m.st.MateU)
+	return slices.Clone(m.st.MateU), nil
 }
 
 // Size returns the size of the matching found by the last call to Match or
@@ -82,9 +107,13 @@ func (m *MCM) Match() []int {
 func (m *MCM) Size() int { return m.size }
 
 // Assign returns the perfect matching as a permutation. It returns
-// [ap.ErrInfeasible] unless |U| = |V| and every row can be matched. Assign
+// [ap.ErrInfeasible] if the fixes conflict, or unless |U| = |V| and every row
+// can be matched. Assign
 // always solves, so Size is valid afterwards even when it returns an error.
 func (m *MCM) Assign() (ap.Permutation, error) {
+	if m.conflict {
+		return nil, ap.ErrInfeasible
+	}
 	m.solve()
 	if m.g.NU != m.g.NV || m.size != m.g.NU {
 		return nil, ap.ErrInfeasible
@@ -92,14 +121,65 @@ func (m *MCM) Assign() (ap.Permutation, error) {
 	return ap.Permutation(slices.Clone(m.st.MateU)), nil
 }
 
-// Remove deletes the edge from row u to column v. It does nothing if u or v
-// is out of range or the edge is missing or already removed. Removing an
-// edge that is not in the current matching leaves the maximum matching
-// unchanged, so the next Match does not need to re-solve.
-func (m *MCM) Remove(u, v int) {
-	if u < 0 || u >= m.g.NU || v < 0 || v >= m.g.NV {
+// Fix removes the edge from row u to column v in every later solve if value
+// is false, and requires it in the matching if value is true. It is a no-op
+// if u or v is out of range or the edge is already fixed to the same value,
+// and Fix(u, v, false) is a no-op if the edge is missing.
+//
+// Every other edge in the row or column of a required edge reads as removed.
+// Removing an edge that is not in the current matching leaves the maximum
+// matching unchanged, so the next Match does not need to re-solve. Requiring
+// an edge removes its row and column neighbors, and re-solves if that
+// unmatches anything. Forbidding an edge takes time linear in the degree of row
+// u. Requiring one also scans the allowed edges of every row, to remove those
+// in column v.
+//
+// Fixes that conflict make every later call to Match and Assign return
+// [ap.ErrInfeasible], and Size return 0: requiring a removed or missing edge,
+// fixing an edge both ways in either order, or requiring two edges that share
+// a row or a column. There is no way to unfix an edge, so a caller that may
+// need to back out should call Copy first.
+func (m *MCM) Fix(u, v int, value bool) {
+	if u < 0 || u >= m.g.NU || v < 0 || v >= m.g.NV || m.conflict {
 		return
 	}
+	if !value {
+		if m.fixCol[u] == v {
+			m.setConflict()
+			return
+		}
+		m.forbid(u, v)
+		return
+	}
+	if m.fixCol[u] == v {
+		return
+	}
+	if m.fixCol[u] >= 0 || m.fixRow[v] >= 0 ||
+		!slices.Contains(m.g.Adj[m.g.Start[u]:m.end[u]], v) {
+		m.setConflict()
+		return
+	}
+	m.fixCol[u], m.fixRow[v] = v, u
+	for w := range m.g.NV {
+		if w != v {
+			m.forbid(u, w)
+		}
+	}
+	for w := range m.g.NU {
+		if w != u {
+			m.forbid(w, v)
+		}
+	}
+}
+
+func (m *MCM) setConflict() {
+	m.conflict = true
+	m.size = 0
+}
+
+// forbid removes the edge from row u to column v. It does nothing if the edge
+// is missing or already removed.
+func (m *MCM) forbid(u, v int) {
 	lo, hi := m.g.Start[u], m.end[u]
 	adj := m.g.Adj
 	for e := lo; e < hi; e++ {
@@ -127,6 +207,8 @@ func (m *MCM) Copy() *MCM {
 	c := *m
 	c.g = &g
 	c.end = slices.Clone(m.end)
+	c.fixCol = slices.Clone(m.fixCol)
+	c.fixRow = slices.Clone(m.fixRow)
 	c.st = m.st.Clone()
 	return &c
 }

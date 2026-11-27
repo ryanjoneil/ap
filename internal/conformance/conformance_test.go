@@ -9,6 +9,7 @@ import (
 
 type solver[S any] interface {
 	Assign() (ap.Permutation, error)
+	Fix(u, v int, value bool)
 	Copy() S
 }
 

@@ -5,7 +5,7 @@
 // assignment) exactly when its size is |U| = |V|.
 //
 // [New] builds a solver from a boolean adjacency matrix, and [NewSparse]
-// builds one from a list of edges. Both support Remove, incremental
+// builds one from a list of edges. Both support Fix, incremental
 // re-solve and Copy.
 //
 // The solver is the Hopcroft–Karp algorithm:
@@ -22,6 +22,6 @@
 //
 // which describes it in §3.3 (Algorithm 3.2, Hopcroft_Karp). The initial
 // matching is greedy: each row, in increasing order, takes the first free
-// column in column order among its edges. After a Remove, the solver
+// column in column order among its edges. After a Fix, the solver
 // re-optimizes from the previous matching rather than starting over.
 package mcm
