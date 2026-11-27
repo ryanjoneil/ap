@@ -103,3 +103,18 @@ func TestHelp(t *testing.T) {
 		t.Errorf("%d %q", code, errOut)
 	}
 }
+
+// The root solves, but the child that forbids an edge raises the big-M past
+// the overflow margin. The CLI discards the assignment already found: it
+// fails with exit 1, the overflow message on stderr and nothing on stdout.
+func TestOverflowAfterResults(t *testing.T) {
+	const in = `[[0,3000000000000000000],[3000000000000000000,0]]`
+	if code, _, errOut := runString([]string{"-k", "1"}, in); code != 0 {
+		t.Fatalf("the root should solve: %d %q", code, errOut)
+	}
+	code, out, errOut := runString([]string{"-k", "2"}, in)
+	want := "klsap: ap: arithmetic overflow; use a smaller -scale or smaller costs\n"
+	if code != 1 || out != "" || errOut != want {
+		t.Errorf("%d %q %q", code, out, errOut)
+	}
+}
