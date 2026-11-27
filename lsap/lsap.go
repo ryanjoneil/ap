@@ -10,10 +10,10 @@ import (
 // LSAP is a linear sum assignment problem solver. Create one with [New] for a
 // complete cost matrix, or with [NewSparse] for a sparse edge list.
 //
-// After an initial call to Assign, one can fix edges, forbidding or requiring
-// them with Fix, and call Assign again to re-optimize incrementally. Copy
-// duplicates a solver, including its current solution, for use in tree
-// search.
+// One can fix edges, forbidding or requiring them with Fix, before or after
+// calling Assign. After a call to Assign, the next one re-optimizes
+// incrementally from the current solution. Copy duplicates a solver,
+// including its current solution, for use in tree search.
 //
 // The results reported by Cost, DualPrices and ReducedCost are meaningful
 // only after a successful call to Assign. They are undefined before any call
@@ -163,10 +163,13 @@ func (a *LSAP[T]) ReducedCost(u, v int) (T, bool) {
 // Every other edge in the row or column of a required edge reads as
 // forbidden: ReducedCost returns false for it, and it never appears in an
 // assignment. Requiring an edge that is already assigned keeps the current
-// solution, so the next Assign doesn't re-solve. Otherwise Fix unassigns row u
-// and column v, and the next Assign re-optimizes them, as it does after
-// forbidding an assigned edge. Requiring an edge copies no cost rows and runs
-// in O(n) time.
+// solution, so the next Assign doesn't re-solve. Otherwise Fix assigns u to
+// v, unassigning u's old column and v's old row, and the next Assign
+// re-optimizes those, as it does after forbidding an assigned edge. Requiring
+// an edge copies no cost rows and runs in O(n) time. It sets the dual price of
+// row u, so, as with any other dual price, it can make Assign return
+// [ap.ErrOverflow] if that price would leave the range in which solving is
+// safe for T.
 //
 // Fixes that conflict make every later call to Assign return
 // [ap.ErrInfeasible]: requiring a forbidden or missing edge, fixing an edge

@@ -163,10 +163,10 @@ func TestDuals(t *testing.T) {
 	}
 }
 
-// runIncremental interleaves Assign and Fix(u, v, false) on a until the problem becomes
-// infeasible, checking every Assign against brute force on the current mask.
-// If alternate is true, every other step removes a random live edge rather
-// than an assigned edge.
+// runIncremental interleaves Assign and Fix(u, v, false) on a until the
+// problem becomes infeasible, checking every Assign against brute force on
+// the current mask. If alternate is true, every other step removes a random
+// live edge rather than an assigned edge.
 func runIncremental(t *testing.T, name string, a *lsap.LSAP[int64], c [][]int64, rng *rand.Rand, alternate bool) {
 	t.Helper()
 

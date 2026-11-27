@@ -27,12 +27,11 @@ func (a *dense[T]) solve() {
 // reduced costs in its inner loop safe. If an update would leave the margin,
 // path sets a.overflow and returns −1 without making it.
 //
-// As a departure from the source, path starts with every required column
-// marked as labelled, and leaves its v[j] and pi[j] alone in the dual update.
-// So it never labels a required column, and never reaches a required row,
-// whose only way in is its required column (see dense). Required columns keep
-// pi[j] = maxT, which is never 0, so the rest of path, which only reads
-// pi[j] for unlabelled columns, treats them as neither.
+// As a departure from the source, path removes every required column from uc
+// before the search starts, so it never labels one, and never reaches a
+// required row, whose only way in is its required column (see dense). The
+// dual update skips required columns, so it leaves their v[j] and pi[j]
+// alone.
 func (a *dense[T]) path(i int) int {
 	lr := []int{i}          // Vector of labelled rows
 	uc := make([]bool, a.n) // uc[j] = true if column j is unlabelled
@@ -51,7 +50,8 @@ func (a *dense[T]) path(i int) int {
 	for {
 		r := lr[len(lr)-1]
 
-		// Locals: otherwise the loop reloads each through a, and its speed is layout-sensitive.
+		// Locals: otherwise the loop reloads each through a, and its speed
+		// is layout-sensitive.
 		ar, ur, v, pi, c := a.a[r], a.u[r], a.v, a.pi, a.c
 		for j := range uc {
 			if !uc[j] {

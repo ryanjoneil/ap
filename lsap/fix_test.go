@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/ryanjoneil/ap"
-	"github.com/ryanjoneil/ap/internal/bruteforce"
 	"github.com/ryanjoneil/ap/lsap"
 )
 
@@ -147,13 +146,7 @@ func TestFixConflicts(t *testing.T) {
 					}
 					continue
 				}
-				if err != nil {
-					t.Fatalf("%s: %s: Assign: %v", name, k.name, err)
-				}
-				want, _ := bruteforce.MinSum(c, mask)
-				if k.a.Cost() != want {
-					t.Errorf("%s: %s: %v cost %v; want %v", name, k.name, p, k.a.Cost(), want)
-				}
+				checkAssignMask(t, name+": "+k.name, k.a, c, mask)
 			}
 		}
 	}
