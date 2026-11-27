@@ -18,8 +18,8 @@ a square cost matrix, in nondecreasing order of cost.
 
 Input is a dense cost matrix, a JSON array of arrays, or a sparse problem,
 a JSON object {"n": N, "edges": [[u, v, cost], ...]}. Costs must be integers
-unless -scale k is given, which multiplies each cost by k and rounds it to an
-integer. Reported costs are divided by k. The flag -k is required.
+unless -scale s is given, which multiplies each cost by s and rounds it to an
+integer. Reported costs are divided by s. The flag -k is required.
 The output has a "status" of "optimal" or "infeasible", and a list of
 "assignments". If there are fewer than k assignments, all are listed.
 

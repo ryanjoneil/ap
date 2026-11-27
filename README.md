@@ -96,8 +96,8 @@ echo '{"n":2,"edges":[[0,0,1],[1,0,2]]}' | lsap
 
 Costs must be integers. A cost written with a fraction or exponent, such as
 `5.0` or `1e3`, is accepted if its value is an integer of magnitude at most
-2^53. Use `-scale k` to multiply each cost by `k` and round it to an integer;
-reported costs, dual prices and reduced costs are divided by `k`. Without it,
+2^53. Use `-scale s` to multiply each cost by `s` and round it to an integer;
+reported costs, dual prices and reduced costs are divided by `s`. Without it,
 a non-integer cost is an error.
 
 ```bash
@@ -117,8 +117,8 @@ lsap solves linear sum assignment problems, given a square cost matrix.
 
 Input is a dense cost matrix, a JSON array of arrays, or a sparse problem,
 a JSON object {"n": N, "edges": [[u, v, cost], ...]}. Costs must be integers
-unless -scale k is given, which multiplies each cost by k and rounds it to an
-integer. Reported costs, dual prices and reduced costs are divided by k.
+unless -scale s is given, which multiplies each cost by s and rounds it to an
+integer. Reported costs, dual prices and reduced costs are divided by s.
 The output has a "status" of "optimal" or "infeasible".
 
 Usage:
@@ -144,8 +144,8 @@ Flags:
     	output matrix assignment form
   -rc
     	output reduced costs (a matrix for dense input, a [u, v, rc] list for sparse input)
-  -scale k
-    	multiply costs by k and round them to integers, to accept non-integer costs (0, the default, means off)
+  -scale s
+    	multiply costs by s and round them to integers, to accept non-integer costs (0, the default, means off)
 ```
 
 ### `mcm`
@@ -228,8 +228,8 @@ matrix. It minimizes the largest cost used in a perfect assignment.
 
 Input is a dense cost matrix, a JSON array of arrays, or a sparse problem,
 a JSON object {"n": N, "edges": [[u, v, cost], ...]}. Costs must be integers
-unless -scale k is given, which multiplies each cost by k and rounds it to an
-integer. The reported cost, the bottleneck value, is divided by k.
+unless -scale s is given, which multiplies each cost by s and rounds it to an
+integer. The reported cost, the bottleneck value, is divided by s.
 The output has a "status" of "optimal" or "infeasible".
 
 Usage:
@@ -251,8 +251,8 @@ Flags:
     	output cyclic assignment form
   -matrix
     	output matrix assignment form
-  -scale k
-    	multiply costs by k and round them to integers, to accept non-integer costs (0, the default, means off)
+  -scale s
+    	multiply costs by s and round them to integers, to accept non-integer costs (0, the default, means off)
 ```
 
 ### `klsap`
@@ -281,8 +281,8 @@ a square cost matrix, in nondecreasing order of cost.
 
 Input is a dense cost matrix, a JSON array of arrays, or a sparse problem,
 a JSON object {"n": N, "edges": [[u, v, cost], ...]}. Costs must be integers
-unless -scale k is given, which multiplies each cost by k and rounds it to an
-integer. Reported costs are divided by k. The flag -k is required.
+unless -scale s is given, which multiplies each cost by s and rounds it to an
+integer. Reported costs are divided by s. The flag -k is required.
 The output has a "status" of "optimal" or "infeasible", and a list of
 "assignments". If there are fewer than k assignments, all are listed.
 
@@ -307,8 +307,8 @@ Flags:
     	number of assignments to rank (required, at least 1)
   -matrix
     	output matrix assignment form
-  -scale k
-    	multiply costs by k and round them to integers, to accept non-integer costs (0, the default, means off)
+  -scale s
+    	multiply costs by s and round them to integers, to accept non-integer costs (0, the default, means off)
 ```
 
 ## Quick Start: Packages

@@ -57,8 +57,8 @@ algorithms or chapter structure.
   `ap.Integer` (signed integer types). Exact integer arithmetic avoids the
   tolerance bugs common in floating-point assignment codes, such as cycling
   and wrong optimality checks.
-- **The CLIs accept floats through `-scale`.** With `-scale k`, each input cost
-  is multiplied by `k` and rounded to the nearest `int64`. Without `-scale`,
+- **The CLIs accept floats through `-scale`.** With `-scale s`, each input cost
+  is multiplied by `s` and rounded to the nearest `int64`. Without `-scale`,
   any non-integer cost is an error whose message suggests `-scale`.
 - **`lsap` stays incremental.** Its value is incremental re-solving: remove
   an edge and re-optimize with a single augmentation (O(n²) dense), plus a
@@ -125,10 +125,13 @@ under `cmd/<package>`. Each package provides:
   feasible assignment exists.
 - Result accessors that are valid after a successful solve (`Cost()` and
   others).
-- `Remove(u, v int)` forbids an edge for later solves. It's a no-op if the
-  edge doesn't exist or is already removed.
+- `Fix(u, v int, value bool)` constrains an edge for later solves: true
+  requires it, false forbids it. Fixes that conflict (requiring a forbidden or
+  missing edge, fixing an edge both ways, requiring two edges that share a row
+  or column) make the next solve return `ap.ErrInfeasible`. There is no unfix;
+  call `Copy` first to keep a way back.
 - `Copy()` returns an independent solver, including its current solution
-  state, so the next re-solve after `Remove` stays incremental.
+  state, so the next re-solve after `Fix` stays incremental.
 - Solvers aren't safe for concurrent use. Use `Copy` to work in parallel.
 - After a solve returns an error, the solver's results are undefined. The
   solver can still be copied or discarded, but further solves aren't
@@ -174,8 +177,8 @@ After v0.5, `ap` contains exactly: `Permutation`, `Cycles`, `Matrix`,
 **Consistency is enforced by tests, not interfaces.** An internal test checks
 that every solver has the shared method set with the agreed signatures
 (`Assign() (ap.Permutation, error)`, `Cost() T` where the problem has costs,
-`Remove(u, v int)`, and `Copy()` returning its own concrete type), so the
-packages can't drift apart.
+`Fix(u, v int, value bool)`, and `Copy()` returning its own concrete type), so
+the packages can't drift apart.
 
 ### Citations
 
@@ -251,12 +254,12 @@ Every binary:
   code 0, because infeasible is a valid answer and not an error;
 - on invalid input, writes a message to stderr and exits with code 1, with
   no stdout output and no panic;
-- supports `-h`; binaries whose problems have costs also support `-scale k`;
+- supports `-h`; binaries whose problems have costs also support `-scale s`;
   binaries that return a permutation support `-cycles` and `-matrix`. A flag
   a binary doesn't support is a usage error (exit 1), which is Go's `flag`
   default;
 - with `-scale`, reports costs, dual prices and reduced costs in the
-  original units (divided by `k`, as JSON numbers). The solution is exact for
+  original units (divided by `s`, as JSON numbers). The solution is exact for
   the scaled integer problem;
 - keeps its logic in a testable `run(args, stdin, stdout, stderr) int`
   function, with `main` as a thin wrapper. CLIs get tests, which they have
