@@ -29,6 +29,17 @@
 //	Society for Industrial and Applied Mathematics (2012).
 //
 // See §5.4.1 (Algorithm 5.1, Murty). The book's bibliography lists Murty's
-// paper as reference [528]. Each subproblem is solved with package lsap; see
-// its documentation for the sources of its dense and sparse solvers.
+// paper as reference [528].
+//
+// Each subproblem is solved with package lsap, incrementally from its
+// parent's optimal assignment and dual prices, by a single shortest-path
+// augmentation. Book §5.4.1 attributes this reoptimization to:
+//
+//	C.R. Pedersen, L.R. Nielsen, and K.A. Andersen.
+//	"A note on ranking assignments using reoptimization."
+//	Technical Report 2005/2, Department of Mathematical Sciences,
+//	University of Aarhus (2005).
+//
+// listed in the book's bibliography as reference [565]. See the lsap
+// documentation for the sources of its dense and sparse solvers.
 package klsap

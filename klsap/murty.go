@@ -33,8 +33,8 @@ func (x *node[T]) before(y *node[T]) bool {
 // forbids (i_h, p(i_h)), on top of nd's own fixes. The children partition the
 // assignments of nd other than nd.p, so the ranking never repeats an
 // assignment. split solves each child and offers it to the queue, dropping
-// infeasible ones. If a child overflows, split sets the sticky error and
-// stops.
+// infeasible ones. If solving a child fails otherwise, as with
+// [ap.ErrOverflow], split stops and returns the error.
 //
 // split creates no child for the last free row i_m: with every other row
 // required, row i_m has only column p(i_m) left, and that is forbidden. This
@@ -50,12 +50,15 @@ func (x *node[T]) before(y *node[T]) bool {
 //     assignment and dual prices. Forbidding the assigned edge
 //     (i_h, p(i_h)) leaves only row i_h unassigned, so lsap solves the child
 //     incrementally with a single augmentation, O(n²) dense, rather than a
-//     full solve. Book §5.4.1 notes that a child can be solved this way.
+//     full solve. Book §5.4.1 attributes this reoptimization, one
+//     shortest-path augmentation per child from the parent's dual prices,
+//     to Pedersen, Nielsen and Andersen (book reference [565]; see the
+//     package doc).
 //   - The popped node's solver is reused as the working solver from which
 //     the children are copied, rather than copying it once more: requiring
 //     (i_h, p(i_h)) in it after each child leaves nd.p optimal, so it needs no
 //     re-solve. nd is never offered again, so its solver is free to change.
-func (a *KLSAP[T]) split(nd *node[T]) {
+func (a *KLSAP[T]) split(nd *node[T]) error {
 	w := nd.a
 	for h, i := range nd.free[:len(nd.free)-1] {
 		child := w.Copy()
@@ -64,13 +67,13 @@ func (a *KLSAP[T]) split(nd *node[T]) {
 		switch {
 		case errors.Is(err, ap.ErrInfeasible):
 		case err != nil:
-			a.err = err
-			return
+			return err
 		default:
 			a.offer(&node[T]{a: child, p: p, cost: child.Cost(), free: nd.free[h:]})
 		}
 		w.Fix(i, nd.p[i], true)
 	}
+	return nil
 }
 
 // offer adds nd to the queue, keeping at most k − r nodes, where r is the
@@ -80,10 +83,10 @@ func (a *KLSAP[T]) split(nd *node[T]) {
 // subproblem in its set Q. After r assignments have been returned, only the
 // k − r best waiting nodes can contribute to the ranking, since every
 // assignment of a worse node costs at least as much as each of the k − r
-// nodes' own assignments. So offer
-// keeps the k − r best by (cost, seq) and drops the rest, which holds memory
-// to O(k) subproblems. Each pop lowers both the queue's size and its
-// capacity by one, so only offers need the check.
+// nodes' own assignments. So offer keeps the k − r best by (cost, seq) and
+// drops the rest, which holds memory to O(k) subproblems. Each pop lowers
+// both the queue's size and its capacity by one, so only offers need the
+// check.
 func (a *KLSAP[T]) offer(nd *node[T]) {
 	nd.seq = a.seq
 	a.seq++

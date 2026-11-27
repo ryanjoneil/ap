@@ -70,8 +70,7 @@ func (a *KLSAP[T]) Next() (ap.Permutation, error) {
 		return nil, a.err
 	}
 	if a.r == a.k {
-		a.err = ap.ErrInfeasible
-		return nil, a.err
+		return nil, a.fail(ap.ErrInfeasible)
 	}
 
 	if a.root != nil {
@@ -79,8 +78,7 @@ func (a *KLSAP[T]) Next() (ap.Permutation, error) {
 		a.root = nil
 		p, err := root.Assign()
 		if err != nil {
-			a.err = err
-			return nil, a.err
+			return nil, a.fail(err)
 		}
 		free := make([]int, len(p))
 		for i := range free {
@@ -88,16 +86,15 @@ func (a *KLSAP[T]) Next() (ap.Permutation, error) {
 		}
 		a.offer(&node[T]{a: root, p: p, cost: root.Cost(), free: free})
 	} else if a.pending != nil {
-		a.split(a.pending)
+		err := a.split(a.pending)
 		a.pending = nil
-		if a.err != nil {
-			return nil, a.err
+		if err != nil {
+			return nil, a.fail(err)
 		}
 	}
 
 	if a.queue.len() == 0 {
-		a.err = ap.ErrInfeasible
-		return nil, a.err
+		return nil, a.fail(ap.ErrInfeasible)
 	}
 	nd := a.queue.popMin()
 	a.r++
@@ -106,6 +103,14 @@ func (a *KLSAP[T]) Next() (ap.Permutation, error) {
 		a.pending = nd
 	}
 	return append(ap.Permutation(nil), nd.p...), nil
+}
+
+// fail makes err sticky and returns it. It releases the waiting subproblems,
+// which no later call can use, so that their solvers can be collected.
+func (a *KLSAP[T]) fail(err error) error {
+	a.err = err
+	a.root, a.pending, a.queue = nil, nil, queue[T]{}
+	return err
 }
 
 // Cost returns the total cost of the assignment last returned by Next. It is
