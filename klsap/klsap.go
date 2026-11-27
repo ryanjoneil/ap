@@ -28,6 +28,13 @@ type KLSAP[T ap.Integer] struct {
 // costs, where costs[u][v] is the cost of assigning u ∈ U to v ∈ V. It
 // validates costs as [lsap.New] does, and returns an error if k < 1. New
 // doesn't solve; the first call to Next does.
+//
+// Every child subproblem forbids an edge, and forbidding an edge in a dense
+// lsap raises its big-M, so a ranking has a narrower usable cost range than
+// [lsap.New] accepts: roughly, it needs about 3·M of room below the largest
+// value of T, where M is lsap's big-M. For int32 and n = 1000, costs up to
+// 2,145,338 pass New, but the ranking can fail with [ap.ErrOverflow] after
+// its first assignment, while costs up to about 700,000 work.
 func New[T ap.Integer](costs [][]T, k int) (*KLSAP[T], error) {
 	if k < 1 {
 		return nil, errors.New("klsap: k must be at least 1")
@@ -43,7 +50,9 @@ func New[T ap.Integer](costs [][]T, k int) (*KLSAP[T], error) {
 // assignment problem whose allowed edges are given by edges, where an edge
 // {U: u, V: v, Cost: c} allows assigning u ∈ U to v ∈ V at cost c. It
 // validates its input as [lsap.NewSparse] does, and returns an error if
-// k < 1. NewSparse doesn't solve; the first call to Next does.
+// k < 1. NewSparse doesn't solve; the first call to Next does. Subproblems
+// that forbid edges can overflow T even when the whole problem does not; see
+// [New] and [KLSAP.Next].
 func NewSparse[T ap.Integer](n int, edges []ap.Edge[T], k int) (*KLSAP[T], error) {
 	if k < 1 {
 		return nil, errors.New("klsap: k must be at least 1")
@@ -65,6 +74,10 @@ func NewSparse[T ap.Integer](n int, edges []ap.Edge[T], k int) (*KLSAP[T], error
 // assignment, and after k assignments. It returns [ap.ErrOverflow] if solving
 // a subproblem would overflow T; see [lsap.New] and [lsap.NewSparse]. Once
 // Next returns an error, it returns the same error on every later call.
+//
+// A subproblem that [lsap] reports as ap.ErrOverflow ends the whole ranking
+// with ap.ErrOverflow, even if that subproblem was really infeasible, and
+// even though earlier calls succeeded.
 func (a *KLSAP[T]) Next() (ap.Permutation, error) {
 	if a.err != nil {
 		return nil, a.err
