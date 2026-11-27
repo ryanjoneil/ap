@@ -51,14 +51,16 @@ func (a *dense[T]) path(i int) int {
 	for {
 		r := lr[len(lr)-1]
 
-		for j := 0; j < a.n; j++ {
+		// Locals: otherwise the loop reloads each through a, and its speed is layout-sensitive.
+		ar, ur, v, pi, c := a.a[r], a.u[r], a.v, a.pi, a.c
+		for j := range uc {
 			if !uc[j] {
 				continue
 			}
-			val := a.a[r][j] - a.u[r] - a.v[j]
-			if val < a.pi[j] {
-				a.pi[j] = val
-				a.c[j] = r
+			val := ar[j] - ur - v[j]
+			if val < pi[j] {
+				pi[j] = val
+				c[j] = r
 			}
 		}
 
