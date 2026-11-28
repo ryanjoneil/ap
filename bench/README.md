@@ -1,35 +1,42 @@
-# External benchmark comparison
+# Benchmarks
 
-Compares `lsap` with SciPy and OR-Tools on the instance classes of book
-Section 4.10.1. Results are in [RESULTS.md](RESULTS.md).
-
-## Setup
-
-    python3 -m venv bench/.venv && bench/.venv/bin/pip install scipy ortools
-
-If `python3 -m venv` lacks pip (Debian/Ubuntu without `python3-venv`), use
-uv instead: `uv venv bench/.venv && uv pip install -p bench/.venv/bin/python scipy ortools`.
-
-## Instances
-
-Generated into `bench/instances/` (git-ignored) with `internal/cmd/geninstance`
-(seed 1, K = 10^6):
-
-- dense uniform and geometric, n = 1000 and 5000
-- dense two-cost, n = 1000 and 5000
-- dense Machol-Wien, n = 1000 and 2000
-- sparse uniform and geometric, n = 100000, degree 10
-
-For example:
-
-    go run ./internal/cmd/geninstance -class uniform -n 1000 > bench/instances/dense-uniform-1000.json
-    go run ./internal/cmd/geninstance -class geometric -n 100000 -degree 10 > bench/instances/sparse-geometric-100000.json
+All benchmarks are Go benchmarks in the solver packages' `bench_test.go`
+files. Results are in [RESULTS.md](RESULTS.md).
 
 ## Running
 
-    bench/.venv/bin/python bench/compare.py bench/instances/*.json
+`go test -bench .` runs the benchmarks sized to stay practical. The large
+benchmarks, whose names start with `BenchmarkLarge`, skip themselves unless
+`AP_BENCH_LARGE` is set:
 
-Each solver runs 3 times per instance and the median is reported. A run that
-exceeds 600 s is killed and reported as a timeout (`COMPARE_TIMEOUT` overrides
-the limit). Differing costs, or an ap-lsap error or timeout, make the script
-exit non-zero; an external solver's error or timeout is only reported.
+    AP_BENCH_LARGE=1 go test -p 1 -run '^$' -bench Large -benchtime 1x -count 5 -timeout 0 ./lsap ./klsap
+
+`-p 1` runs one package at a time, so the packages don't compete for the
+machine. `-benchtime 1x` times one run per count, since a single run takes
+seconds to minutes. `-timeout 0` lifts the default 10-minute test timeout.
+
+The large benchmarks are:
+
+- `lsap`'s `BenchmarkLargeDense`: the uniform, geometric and two-cost classes
+  of book Section 4.10.1 at n = 1,000 and 5,000, and Machol–Wien at n = 1,000
+  and 2,000.
+- `lsap`'s `BenchmarkLargeSparse`: uniform and geometric at n = 100,000 with 10
+  edges per row.
+- `klsap`'s `BenchmarkLargeDense`: ranking the k = 100 best assignments of a
+  uniform instance with n = 1,000.
+
+Instances come from `internal/instances` with seed 1 and K = 10⁶, generated
+outside the timed loop. `lsap` benchmarks time `New` or `NewSparse` plus
+`Assign`, which includes the solver's copy of its input. `klsap`'s dense
+benchmarks also report `held-B/subproblem`, the live heap each waiting
+subproblem holds.
+
+## Comparing
+
+To compare two versions, save each one's output and run
+[benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat):
+
+    go test -run '^$' -bench . -count 10 ./lsap > old.txt
+    # change the code
+    go test -run '^$' -bench . -count 10 ./lsap > new.txt
+    go run golang.org/x/perf/cmd/benchstat@v0.0.0-20261117185222-4febdb082b2c old.txt new.txt

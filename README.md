@@ -508,9 +508,16 @@ for {
 
 ## Benchmarks
 
-`bench/` compares `lsap` with SciPy and OR-Tools on the instance classes of
-the book's Section 4.10.1. See [bench/RESULTS.md](bench/RESULTS.md) for the
-results and [bench/README.md](bench/README.md) for how to reproduce them.
+Every solver has Go benchmarks, run with `go test -bench .`. The large ones
+use the instance classes of the book's Section 4.10.1 at n = 1,000 to
+100,000. They take seconds to minutes per run, so they are opt-in:
+
+```bash
+AP_BENCH_LARGE=1 go test -p 1 -run '^$' -bench Large ./lsap ./klsap
+```
+
+See [bench/RESULTS.md](bench/RESULTS.md) for results and
+[bench/README.md](bench/README.md) for how to run and compare them.
 
 ## References
 
