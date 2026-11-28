@@ -125,10 +125,13 @@ under `cmd/<package>`. Each package provides:
   feasible assignment exists.
 - Result accessors that are valid after a successful solve (`Cost()` and
   others).
-- `Remove(u, v int)` forbids an edge for later solves. It's a no-op if the
-  edge doesn't exist or is already removed.
+- `Fix(u, v int, value bool)` constrains an edge for later solves: true
+  requires it, false forbids it. Fixes that conflict (requiring a forbidden or
+  missing edge, fixing an edge both ways, requiring two edges that share a row
+  or column) make the next solve return `ap.ErrInfeasible`. There is no unfix;
+  call `Copy` first to keep a way back.
 - `Copy()` returns an independent solver, including its current solution
-  state, so the next re-solve after `Remove` stays incremental.
+  state, so the next re-solve after `Fix` stays incremental.
 - Solvers aren't safe for concurrent use. Use `Copy` to work in parallel.
 - After a solve returns an error, the solver's results are undefined. The
   solver can still be copied or discarded, but further solves aren't
@@ -174,8 +177,8 @@ After v0.5, `ap` contains exactly: `Permutation`, `Cycles`, `Matrix`,
 **Consistency is enforced by tests, not interfaces.** An internal test checks
 that every solver has the shared method set with the agreed signatures
 (`Assign() (ap.Permutation, error)`, `Cost() T` where the problem has costs,
-`Remove(u, v int)`, and `Copy()` returning its own concrete type), so the
-packages can't drift apart.
+`Fix(u, v int, value bool)`, and `Copy()` returning its own concrete type), so
+the packages can't drift apart.
 
 ### Citations
 

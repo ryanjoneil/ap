@@ -98,9 +98,9 @@ func TestDenseOverflowInt8(t *testing.T) {
 		}
 		for _, r := range tc.removes {
 			if p, err := a.Assign(); err != nil {
-				t.Fatalf("%s: Assign before Remove(%v, %v) = (%v, %v)", name, r[0], r[1], p, err)
+				t.Fatalf("%s: Assign before Fix(%v, %v, false) = (%v, %v)", name, r[0], r[1], p, err)
 			}
-			a.Remove(r[0], r[1])
+			a.Fix(r[0], r[1], false)
 		}
 		if p, err := a.Assign(); !errors.Is(err, ap.ErrOverflow) {
 			t.Errorf("%s: Assign = (%v, %v), cost %v; want ErrOverflow", name, p, err, a.Cost())
@@ -270,9 +270,9 @@ func TestSparseOverflowInt8(t *testing.T) {
 		}
 		for _, r := range tc.removes {
 			if p, err := a.Assign(); err != nil {
-				t.Fatalf("%s: Assign before Remove(%v, %v) = (%v, %v)", name, r[0], r[1], p, err)
+				t.Fatalf("%s: Assign before Fix(%v, %v, false) = (%v, %v)", name, r[0], r[1], p, err)
 			}
-			a.Remove(r[0], r[1])
+			a.Fix(r[0], r[1], false)
 		}
 		if p, err := a.Assign(); !errors.Is(err, ap.ErrOverflow) {
 			t.Errorf("%s: Assign = (%v, %v), cost %v; want ErrOverflow", name, p, err, a.Cost())
@@ -322,9 +322,10 @@ func TestSparseNeverWrongInt16(t *testing.T) {
 
 // checkNeverWrong runs 2000 random trials of at most 4×4 problems with costs
 // in [−K, K], where K ranges from 1 to the largest value of T less one. Each
-// trial builds a solver with build, then alternately removes an assigned edge
-// and a random edge, solving after each removal, until brute force (in int64)
-// says the problem is infeasible. Every Assign must either return
+// trial builds a solver with build, then alternately forbids an assigned edge
+// and a random edge, and on about a third of the steps also requires an
+// assigned or random edge, solving after each step, until brute force (in
+// int64) says the problem is infeasible. Every Assign must either return
 // ap.ErrOverflow, which ends the trial, or agree with brute force. A copy of
 // a solved solver must report the same cost. Every third step goes on solving
 // through a copy made after the removal, which must give the same result as
@@ -431,9 +432,21 @@ func checkNeverWrong[T ap.Integer](
 				v = rng.IntN(n)
 			}
 			mask[u][v] = false
-			a.Remove(u, v)
+			a.Fix(u, v, false)
+			// On about a third of the steps, also require an edge, assigned or
+			// random. This only clears entries of the mask, so the bound on
+			// the steps still holds.
+			if rng.IntN(3) == 0 {
+				u = rng.IntN(n)
+				v = p[u]
+				if rng.IntN(2) == 0 {
+					v = rng.IntN(n)
+				}
+				fixMask(mask, u, v, true)
+				a.Fix(u, v, true)
+			}
 			// Every third step, solve on through a copy, which must carry
-			// the removals.
+			// the fixes.
 			if step%3 == 2 {
 				orig, a = a, a.Copy()
 			}
@@ -519,4 +532,26 @@ func checkSameCost[T ap.Integer](
 		t.Errorf("%T cost %v; int64 cost %v", T(0), got, want)
 	}
 	return a64.Cost()
+}
+
+// Forbidding an edge that a required edge already blocks, in its row or its
+// column, changes nothing, so it must not shrink the dense margin. Here A = 40
+// and B = 43, and the duals are v = [−40, −40]. Forbidding an edge would
+// raise A to M = 81 and lower B to 22, and Assign would return ErrOverflow.
+func TestFixBlockedEdgeKeepsMarginInt8(t *testing.T) {
+	for name, blocked := range map[string][2]int{"row": {0, 1}, "column": {1, 0}} {
+		a, err := lsap.New([][]int8{{-40, 0}, {0, -40}})
+		if err != nil {
+			t.Fatalf("%s: New: %v", name, err)
+		}
+		if _, err := a.Assign(); err != nil {
+			t.Fatalf("%s: Assign: %v", name, err)
+		}
+		a.Fix(0, 0, true)
+		a.Fix(blocked[0], blocked[1], false)
+		p, err := a.Assign()
+		if err != nil || a.Cost() != -80 {
+			t.Errorf("%s: Assign = (%v, %v), cost %v; want cost -80", name, p, err, a.Cost())
+		}
+	}
 }

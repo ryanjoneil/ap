@@ -33,13 +33,13 @@ func TestAssigner(t *testing.T) {
 		{23, 0, 3, 11},
 	}, nil)
 
-	// Remove edges, re-optimize, and check.
-	a.Remove(2, 2)
-	a.Remove(1, 0)
-	a.Remove(0, 3)
-	a.Remove(3, 1)
-	a.Remove(2, 0)
-	a.Remove(3, 3)
+	// Forbid edges, re-optimize, and check.
+	a.Fix(2, 2, false)
+	a.Fix(1, 0, false)
+	a.Fix(0, 3, false)
+	a.Fix(3, 1, false)
+	a.Fix(2, 0, false)
+	a.Fix(3, 3, false)
 
 	checkAssign(t, a, ap.Permutation{0, 1, 3, 2}) // Side effect: optimizes problem.
 	checkCost(t, a, 100)

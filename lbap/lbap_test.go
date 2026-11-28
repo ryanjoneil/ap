@@ -122,14 +122,14 @@ func TestIsolated(t *testing.T) {
 }
 
 // Review Focus 4.
-func TestRemoveWholeRow(t *testing.T) {
+func TestFixWholeRow(t *testing.T) {
 	a, _ := lbap.NewSparse(2, []ap.Edge[int64]{
 		{U: 0, V: 0, Cost: 1}, {U: 0, V: 1, Cost: 2}, {U: 1, V: 0, Cost: 3}, {U: 1, V: 1, Cost: 4},
 	})
 	_, _ = a.Assign()
 	b := a.Copy()
-	a.Remove(0, 0)
-	a.Remove(0, 1)
+	a.Fix(0, 0, false)
+	a.Fix(0, 1, false)
 	if _, err := a.Assign(); !errors.Is(err, ap.ErrInfeasible) {
 		t.Errorf("got %v", err)
 	}
@@ -139,10 +139,10 @@ func TestRemoveWholeRow(t *testing.T) {
 	}
 }
 
-// TestRemoveIncremental repeatedly removes an assigned edge, plus an arbitrary
-// other edge (assigned or not, possibly already removed) and some no-ops, and
+// TestFixIncremental repeatedly forbids an assigned edge, plus an arbitrary
+// other edge (assigned or not, possibly already forbidden) and some no-ops, and
 // compares each re-solve with brute force on the shrinking mask.
-func TestRemoveIncremental(t *testing.T) {
+func TestFixIncremental(t *testing.T) {
 	rng := rand.New(rand.NewPCG(2, 2))
 	for trial := range 300 {
 		n := 2 + rng.IntN(5)
@@ -165,29 +165,29 @@ func TestRemoveIncremental(t *testing.T) {
 				break
 			}
 			u := rng.IntN(n)
-			a.Remove(u, p[u])
+			a.Fix(u, p[u], false)
 			mask[u][p[u]] = false
-			a.Remove(u, p[u]) // already removed: a no-op
-			a.Remove(-1, 0)
-			a.Remove(0, n)
-			a.Remove(n, 0)
+			a.Fix(u, p[u], false) // already removed: a no-op
+			a.Fix(-1, 0, false)
+			a.Fix(0, n, false)
+			a.Fix(n, 0, false)
 			if p := check(t, "after assigned", a, c, mask); p == nil {
 				break
 			}
 			ru, rv := rng.IntN(n), rng.IntN(n)
-			a.Remove(ru, rv)
+			a.Fix(ru, rv, false)
 			mask[ru][rv] = false
 		}
 	}
 }
 
-// Removing an edge outside the assignment keeps the cached solution.
-func TestRemoveUnassignedKeepsSolution(t *testing.T) {
+// Forbidding an edge outside the assignment keeps the cached solution.
+func TestForbidUnassignedKeepsSolution(t *testing.T) {
 	c := [][]int64{{1, 9}, {9, 1}}
 	a, _ := lbap.New(c)
 	before, _ := a.Assign()
-	a.Remove(0, 1)
-	a.Remove(1, 0)
+	a.Fix(0, 1, false)
+	a.Fix(1, 0, false)
 	after, err := a.Assign()
 	if err != nil || a.Cost() != 1 || !slices.Equal(before, after) {
 		t.Fatalf("got %v %v %v; want %v", after, err, a.Cost(), before)
@@ -200,7 +200,7 @@ func TestCopyIndependent(t *testing.T) {
 	maskA := fullMask(3)
 	a, _ := lbap.New(c)
 	check(t, "a", a, c, maskA)
-	a.Remove(0, 0) // The copy must inherit this removal.
+	a.Fix(0, 0, false) // The copy must inherit this removal.
 	maskA[0][0] = false
 	b := a.Copy()
 	maskB := fullMask(3)
@@ -210,7 +210,7 @@ func TestCopyIndependent(t *testing.T) {
 	costA := a.Cost()
 	pb := check(t, "b", b, c, maskB)
 	for u, v := range pb {
-		b.Remove(u, v)
+		b.Fix(u, v, false)
 		maskB[u][v] = false
 	}
 	if got, _ := a.Assign(); !slices.Equal(got, pa) || a.Cost() != costA {
@@ -222,7 +222,7 @@ func TestCopyIndependent(t *testing.T) {
 	pb, _ = b.Assign()
 	costB := b.Cost()
 	for u, v := range pa {
-		a.Remove(u, v)
+		a.Fix(u, v, false)
 		maskA[u][v] = false
 	}
 	check(t, "a", a, c, maskA)
@@ -292,7 +292,7 @@ func TestNewErrors(t *testing.T) {
 func TestNewCopiesInput(t *testing.T) {
 	c := [][]int64{{3, 1}, {2, 4}}
 	a, _ := lbap.New(c)
-	a.Remove(0, 1)
+	a.Fix(0, 1, false)
 	_, _ = a.Assign()
 	if !slices.Equal(c[0], []int64{3, 1}) || !slices.Equal(c[1], []int64{2, 4}) {
 		t.Fatalf("costs modified: %v", c)
@@ -305,7 +305,7 @@ func TestNewCopiesInput(t *testing.T) {
 	edges := []ap.Edge[int64]{{U: 1, V: 1, Cost: 4}, {U: 0, V: 1, Cost: 2}, {U: 0, V: 0, Cost: 1}, {U: 1, V: 0, Cost: 3}}
 	orig := slices.Clone(edges)
 	s, _ := lbap.NewSparse(2, edges)
-	s.Remove(0, 0)
+	s.Fix(0, 0, false)
 	_, _ = s.Assign()
 	if !slices.Equal(edges, orig) {
 		t.Fatalf("edges modified: %v", edges)

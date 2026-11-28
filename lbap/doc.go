@@ -11,7 +11,7 @@
 //
 // [New] builds a solver from a complete n×n cost matrix, and [NewSparse]
 // builds one from a list of edges, where a missing edge is forbidden. Both
-// support Remove, incremental re-solve and Copy.
+// support Fix, incremental re-solve and Copy.
 //
 // The solver is a threshold algorithm, an idea that dates back to
 //
@@ -41,11 +41,11 @@
 //     than testing the median of the cost entries strictly between the
 //     current bounds. Each test halves the number of candidate values, so
 //     there are O(log k) tests for k distinct costs. The largest cost is
-//     tested explicitly, since sparse input or removals may leave no perfect
+//     tested explicitly, since sparse input or fixes may leave no perfect
 //     assignment at all.
 //   - Each feasibility check warm-starts Hopcroft–Karp from the matching left
 //     by the previous check, after unmatching the rows whose matched edge is
 //     above the new threshold, instead of starting from an empty matching.
-//   - After a Remove, the search starts at the previous optimum, since
-//     removing edges never decreases the bottleneck value.
+//   - After a Fix, the search starts at the previous optimum, since
+//     forbidding edges never decreases the bottleneck value.
 package lbap

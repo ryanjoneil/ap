@@ -15,7 +15,11 @@ func Example() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(m.Match())
+	mate, err := m.Match()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(mate)
 	fmt.Println(m.Size())
 	// Output:
 	// [1 0 2]

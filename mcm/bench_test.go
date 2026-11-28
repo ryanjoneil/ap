@@ -24,7 +24,7 @@ func BenchmarkSparse100K(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		m.Match()
+		_, _ = m.Match()
 	}
 }
 
@@ -43,6 +43,6 @@ func BenchmarkDense2K(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		m.Match()
+		_, _ = m.Match()
 	}
 }
