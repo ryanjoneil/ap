@@ -1,93 +1,56 @@
-# External benchmark results
+# Benchmark results
 
-Date: 2026-11-25
+Date: 2026-11-28. Code: `v0.6-klsap-24` at 70300e9, plus the #39 benchmarks.
 
 ## Environment
 
-- Machine: AMD Ryzen Threadripper PRO 5955WX 16-Cores (16 cores, 32 threads), 247 GB RAM, Linux 7.0.0-44-generic
+- Machine: AMD Ryzen Threadripper PRO 5955WX 16-Cores (16 cores, 32 threads),
+  247 GB RAM, Linux 7.0.0-44-generic
 - Go: go1.27.0 linux/amd64
-- Python: 3.14.4
-- SciPy 1.18.1, NumPy 2.5.5, OR-Tools 9.15.6755 (from `pip freeze` of `bench/.venv`)
 
-The machine was not otherwise idle: unrelated single-threaded jobs from another
-project were running during part of the session, so absolute times may carry
-some noise. All solvers ran sequentially, one at a time.
+The machine was not idle: unrelated jobs from another project kept the load
+average between 7 and 9 throughout. Each benchmark is single-threaded, so
+this mostly shows up as occasional slow runs (for example, one geometric
+n = 5,000 run took 14.3 s against a median of 7.9 s). Medians resist those.
 
 ## Commands
 
-    # instances (seed 1, K = 1000000), written to bench/instances/
-    go run ./internal/cmd/geninstance -class uniform|geometric|twocost -n 1000|5000 > bench/instances/dense-<class>-<n>.json
-    go run ./internal/cmd/geninstance -class macholwien -n 1000|2000 > bench/instances/dense-macholwien-<n>.json
-    go run ./internal/cmd/geninstance -class uniform|geometric -n 100000 -degree 10 > bench/instances/sparse-<class>-100000.json
+    AP_BENCH_LARGE=1 go test -p 1 -run '^$' -bench Large -benchtime 1x -count 5 -timeout 0 ./lsap ./klsap > large.txt
+    go run golang.org/x/perf/cmd/benchstat@v0.0.0-20261117185222-4febdb082b2c large.txt
 
-    # comparison
-    bench/.venv/bin/python bench/compare.py bench/instances/*.json
+See [README.md](README.md) for what each benchmark times. Instances use seed
+1 and K = 10⁶, the same instances as v0.5's comparison.
 
-Machol-Wien stops at n = 2000, rather than 5000 like the other dense classes,
-to bound the run time: ap-lsap already takes about 24 s per run at n = 2000.
+## `lsap` (median of 5 runs, seconds)
 
-## What is timed
+The last column is v0.5.0's `lsap` on the same instances, from that
+release's `bench/RESULTS.md` (median of 3 runs, timed by a helper command
+rather than `go test`, on a similarly loaded machine). It's there for scale.
+Use benchstat on runs from the same session to compare versions.
 
-Each solver runs 3 times per instance; the table shows the median in seconds.
-Only the solve is timed, not JSON parsing or array construction.
+| benchmark | n | edges | v0.6 (s) | v0.5.0 (s) |
+|---|---|---|---|---|
+| dense uniform | 1,000 | 10⁶ | 0.063 | 0.042 |
+| dense uniform | 5,000 | 2.5·10⁷ | 1.526 | 1.751 |
+| dense geometric | 1,000 | 10⁶ | 0.094 | 0.171 |
+| dense geometric | 5,000 | 2.5·10⁷ | 7.882 | 13.289 |
+| dense two-cost | 1,000 | 10⁶ | 0.008 | 0.011 |
+| dense two-cost | 5,000 | 2.5·10⁷ | 0.256 | 0.258 |
+| dense Machol–Wien | 1,000 | 10⁶ | 1.526 | 3.225 |
+| dense Machol–Wien | 2,000 | 4·10⁶ | 12.29 | 23.753 |
+| sparse uniform | 100,000 | 10⁶ | 3.927 | 6.146 |
+| sparse geometric | 100,000 | 10⁶ | 4.865 | 5.454 |
 
-- ap-lsap: `internal/cmd/timesolve` times `lsap.New`/`lsap.NewSparse` plus
-  `Assign`, excluding JSON parsing. This includes the solver's internal copy of
-  the input (`New` copies), which is part of its API cost.
-- SciPy: `linear_sum_assignment` (dense) and
-  `min_weight_full_bipartite_matching` on a CSR matrix with costs +1 (sparse;
-  for dense instances the full matrix is passed as CSR, as an extra data point).
-  The numpy arrays / CSR matrix are built before the timer starts. In the runs
-  reported here, the SciPy timer also covered summing the assigned costs
-  (`m[r, c].sum()`, O(n)), which is negligible next to the solve and changes
-  no verdict below. compare.py now sums them after the timer stops.
-- OR-Tools: `SimpleLinearSumAssignment`; the timer covers
-  `add_arcs_with_cost` (bulk, from prebuilt numpy arrays), `solve` and reading
-  the optimal cost. The Python API matched the brief's names in 9.15.
-- Each external run is in a forked child process (copy-on-write instance), so
-  the 600 s timeout can be enforced. No run timed out.
-- All solvers' optimal costs agree on every instance (checked by compare.py).
+Dense uniform at n = 1,000 is the noisiest row: its runs ranged from 0.038 s
+to 0.069 s.
 
-## Results (median of 3 runs, seconds)
+## `klsap` (median of 5 runs)
 
-| instance | n | edges | ap-lsap (s) | scipy dense (s) | scipy sparse (s) | ortools (s) |
-|---|---|---|---|---|---|---|
-| dense-geometric-1000.json | 1000 | 1000000 | 0.171 | 0.104 | 0.270 | 0.135 |
-| dense-geometric-5000.json | 5000 | 25000000 | 13.289 | 6.597 | 8.271 | 5.447 |
-| dense-macholwien-1000.json | 1000 | 1000000 | 3.225 | 0.635 | 1.766 | 0.203 |
-| dense-macholwien-2000.json | 2000 | 4000000 | 23.753 | 2.881 | 8.180 | 0.813 |
-| dense-twocost-1000.json | 1000 | 1000000 | 0.011 | 0.015 | 0.025 | 0.156 |
-| dense-twocost-5000.json | 5000 | 25000000 | 0.258 | 0.255 | 0.451 | 4.228 |
-| dense-uniform-1000.json | 1000 | 1000000 | 0.042 | 0.037 | 0.031 | 0.096 |
-| dense-uniform-5000.json | 5000 | 25000000 | 1.751 | 1.959 | 0.794 | 2.655 |
-| sparse-geometric-100000.json | 100000 | 1000000 | 5.454 | - | 24.400 | 0.486 |
-| sparse-uniform-100000.json | 100000 | 1000000 | 6.146 | - | 19.892 | 0.508 |
+| benchmark | time (s) | allocated per ranking | allocations | held per waiting subproblem |
+|---|---|---|---|---|
+| dense uniform, n = 1,000, k = 100 | 67.89 | 10.1 GiB | 2.11 M | 115 KiB |
 
-`-` means not applicable (SciPy's dense solver is only run on dense instances).
-
-## Ratio of ap-lsap to the fastest external solver
-
-| instance | fastest external | ap-lsap / fastest |
-|---|---|---|
-| dense-uniform-1000 | scipy sparse 0.031 | 1.35x |
-| dense-uniform-5000 | scipy sparse 0.794 | 2.21x |
-| dense-geometric-1000 | scipy dense 0.104 | 1.64x |
-| dense-geometric-5000 | ortools 5.447 | 2.44x |
-| dense-twocost-1000 | scipy dense 0.015 | 0.73x |
-| dense-twocost-5000 | scipy dense 0.255 | 1.01x |
-| dense-macholwien-1000 | ortools 0.203 | 15.9x |
-| dense-macholwien-2000 | ortools 0.813 | 29.2x |
-| sparse-uniform-100000 | ortools 0.508 | 12.1x |
-| sparse-geometric-100000 | ortools 0.486 | 11.2x |
-
-## Findings
-
-ap-lsap is competitive on the dense random classes: within 1.4x-2.5x of the
-fastest external solver on uniform and geometric, level with SciPy on two-cost
-(slightly faster at n = 1000, tied at n = 5000), and faster than OR-Tools on
-uniform and two-cost at n = 5000. It is clearly slower on the Machol-Wien class
-(16x-29x slower than OR-Tools, 5x-8x slower than SciPy's dense solver) and on
-sparse instances, where it is 11x-12x slower than OR-Tools, and 3.2x (uniform)
-to 4.5x (geometric) faster than SciPy's sparse solver. Only Machol-Wien and the sparse classes exceed the
-3x threshold. The gap grows with n on Machol-Wien. Results are for one seed on
-one machine, with three runs each.
+Each waiting subproblem holds about 115 KiB at n = 1,000, so a ranking with
+k = 100 keeps about 11 MiB of subproblems alive, plus the shared 8 MB cost
+matrix. Most of the time and allocation goes to the up to n − 1 children solved
+at each split, most of which the bounded queue then drops.

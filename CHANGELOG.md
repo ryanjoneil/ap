@@ -10,6 +10,10 @@ New:
 
 Changed:
 
+* #39: The repo is Go only. The SciPy/OR-Tools comparison script
+  (`bench/compare.py`) and its helper commands are gone. The large benchmark
+  sizes it timed are opt-in Go benchmarks (`AP_BENCH_LARGE=1`, names starting
+  with `BenchmarkLarge`), and `bench/RESULTS.md` records Go benchmark results.
 * #38: Breaking: `Remove` is replaced by `Fix(u, v, value)` in `lsap`, `lbap`
   and `mcm`, which can also require an edge. `mcm.Match` returns an error.
 * #34: `lsap` detects overflow while solving instead of ruling it out up

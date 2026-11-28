@@ -423,20 +423,17 @@ func (a *LBAP[T]) Copy() *LBAP[T]
   `go test -bench .` practical. Benchmark setup must not allocate huge inputs
   for each iteration (the current `BenchmarkSolve10K` builds an 800 MB matrix
   per iteration).
-- **External comparison**, run by hand and not in CI. `lsap` is compared with
-  SciPy's `linear_sum_assignment` and OR-Tools' linear assignment solver on
-  dense n = 1,000 and 5,000, and on sparse instances of about 1 million edges
-  (n ≈ 100,000, average degree ≈ 10).
-  Results are recorded in a markdown file in the repo, with machine, versions
-  and commands. If `lsap` loses badly on one-shot dense solves, a "one-shot
-  LSAP algorithm" issue is filed for a later milestone. If sparse `lsap`
-  loses badly, a follow-up issue is filed too. Neither blocks v0.5, as long as
-  the results are recorded honestly. The reference machine is the project
-  owner's development machine. The external tools are installed in an
-  isolated Python virtual environment at their current releases, with exact
-  versions recorded alongside the results. Scripts for the
-  external tools may use Python; they live outside the Go module's packages
-  and are never needed to build or test.
+- **Large benchmarks**, opt-in and not in CI. Go benchmarks named
+  `BenchmarkLarge...` skip themselves unless `AP_BENCH_LARGE` is set. They
+  time `lsap` on dense n = 1,000 and 5,000 for each class (Machol–Wien stops
+  at 2,000), and on sparse instances of about 1 million edges (n ≈ 100,000,
+  average degree ≈ 10). Results are recorded in `bench/RESULTS.md`, with
+  machine, Go version and commands. The reference machine is the project
+  owner's development machine. The repo is Go only: v0.5 compared `lsap`
+  with SciPy and OR-Tools through a Python script, which v0.6 removed (#39).
+  That comparison is in the v0.5.0 tag's `bench/RESULTS.md`. It found `lsap`
+  within about 2.5x of the fastest external solver on the dense random
+  classes, and 11x to 29x slower on Machol–Wien and sparse instances.
 
 ### 7. Docs and release
 
