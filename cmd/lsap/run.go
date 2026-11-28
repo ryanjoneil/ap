@@ -18,8 +18,8 @@ const usageText = `lsap solves linear sum assignment problems, given a square co
 
 Input is a dense cost matrix, a JSON array of arrays, or a sparse problem,
 a JSON object {"n": N, "edges": [[u, v, cost], ...]}. Costs must be integers
-unless -scale k is given, which multiplies each cost by k and rounds it to an
-integer. Reported costs, dual prices and reduced costs are divided by k.
+unless -scale s is given, which multiplies each cost by s and rounds it to an
+integer. Reported costs, dual prices and reduced costs are divided by s.
 The output has a "status" of "optimal" or "infeasible".
 
 Usage:

@@ -18,8 +18,8 @@ matrix. It minimizes the largest cost used in a perfect assignment.
 
 Input is a dense cost matrix, a JSON array of arrays, or a sparse problem,
 a JSON object {"n": N, "edges": [[u, v, cost], ...]}. Costs must be integers
-unless -scale k is given, which multiplies each cost by k and rounds it to an
-integer. The reported cost, the bottleneck value, is divided by k.
+unless -scale s is given, which multiplies each cost by s and rounds it to an
+integer. The reported cost, the bottleneck value, is divided by s.
 The output has a "status" of "optimal" or "infeasible".
 
 Usage:

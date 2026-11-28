@@ -4,6 +4,7 @@
 
 New:
 
+* #24: `klsap` and `cmd/klsap` rank the k best assignments.
 * #34: `ap.ErrOverflow` is the error `lsap`'s `Assign` returns when solving
   would overflow `T`.
 

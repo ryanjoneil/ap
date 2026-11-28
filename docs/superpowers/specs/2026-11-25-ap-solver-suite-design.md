@@ -57,8 +57,8 @@ algorithms or chapter structure.
   `ap.Integer` (signed integer types). Exact integer arithmetic avoids the
   tolerance bugs common in floating-point assignment codes, such as cycling
   and wrong optimality checks.
-- **The CLIs accept floats through `-scale`.** With `-scale k`, each input cost
-  is multiplied by `k` and rounded to the nearest `int64`. Without `-scale`,
+- **The CLIs accept floats through `-scale`.** With `-scale s`, each input cost
+  is multiplied by `s` and rounded to the nearest `int64`. Without `-scale`,
   any non-integer cost is an error whose message suggests `-scale`.
 - **`lsap` stays incremental.** Its value is incremental re-solving: remove
   an edge and re-optimize with a single augmentation (O(n²) dense), plus a
@@ -79,7 +79,7 @@ Each milestone is a GitHub milestone and a release.
 | Milestone | Contents |
 |---|---|
 | **v0.5** | `ap`/`lsap` API cleanup; sparse `lsap`; shared internal plumbing and CLI conventions; `mcm` (bipartite matching); `lbap` (bottleneck assignment, closes #2); benchmark instance generators. |
-| v0.6 | k-best assignments (Murty's ranking), built on incremental `lsap`. |
+| v0.6 | `klsap`: k-best assignments (Murty's ranking), built on incremental `lsap`; `Fix` replaces `Remove` in `lsap`, `lbap` and `mcm` (#38). |
 | v0.7 | Quadratic assignment (QAP): strong heuristics for large instances, plus an exact branch-and-bound with the Gilmore–Lawler bound for small instances (n ≤ about 30). Benchmarked against QAPLIB's best-known solutions. |
 | Later, as wanted | Rectangular and k-cardinality LSAP; a one-shot LSAP algorithm if benchmarks call for it; balanced and lexicographic bottleneck assignment; semi-assignment; axial 3-index assignment. |
 
@@ -254,12 +254,12 @@ Every binary:
   code 0, because infeasible is a valid answer and not an error;
 - on invalid input, writes a message to stderr and exits with code 1, with
   no stdout output and no panic;
-- supports `-h`; binaries whose problems have costs also support `-scale k`;
+- supports `-h`; binaries whose problems have costs also support `-scale s`;
   binaries that return a permutation support `-cycles` and `-matrix`. A flag
   a binary doesn't support is a usage error (exit 1), which is Go's `flag`
   default;
 - with `-scale`, reports costs, dual prices and reduced costs in the
-  original units (divided by `k`, as JSON numbers). The solution is exact for
+  original units (divided by `s`, as JSON numbers). The solution is exact for
   the scaled integer problem;
 - keeps its logic in a testable `run(args, stdin, stdout, stderr) int`
   function, with `main` as a thin wrapper. CLIs get tests, which they have
