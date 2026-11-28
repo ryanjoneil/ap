@@ -5,6 +5,8 @@
 // ok[i][j] == false forbids the edge from row i to column j.
 package bruteforce
 
+import "slices"
+
 // MinSum returns the minimum total cost of any assignment of the square cost
 // matrix c that uses only allowed edges. feasible is false if no such
 // assignment exists.
@@ -47,6 +49,18 @@ func MaxMatching(ok [][]bool) int {
 	return rec(0)
 }
 
+// AllSums returns the total cost of every assignment of the square cost
+// matrix c that uses only allowed edges, sorted in ascending order. It
+// returns nil if no such assignment exists.
+func AllSums(c [][]int64, ok [][]bool) []int64 {
+	var sums []int64
+	enumerate(c, ok, func(acc, cost int64) int64 { return acc + cost }, func(total int64) {
+		sums = append(sums, total)
+	})
+	slices.Sort(sums)
+	return sums
+}
+
 // search enumerates every assignment of c that uses only allowed edges,
 // combining edge costs with combine, and returns the smallest result.
 func search(
@@ -54,15 +68,29 @@ func search(
 	ok [][]bool,
 	combine func(acc, cost int64) int64,
 ) (best int64, feasible bool) {
+	enumerate(c, ok, combine, func(total int64) {
+		if !feasible || total < best {
+			best, feasible = total, true
+		}
+	})
+	return best, feasible
+}
+
+// enumerate calls visit with the combined cost of every assignment of c that
+// uses only allowed edges, where combine folds each edge cost into the total.
+func enumerate(
+	c [][]int64,
+	ok [][]bool,
+	combine func(acc, cost int64) int64,
+	visit func(total int64),
+) {
 	n := len(c)
 	used := make([]bool, n)
 
 	var rec func(i int, acc int64)
 	rec = func(i int, acc int64) {
 		if i == n {
-			if !feasible || acc < best {
-				best, feasible = acc, true
-			}
+			visit(acc)
 			return
 		}
 		for j := range n {
@@ -80,5 +108,4 @@ func search(
 	}
 
 	rec(0, 0)
-	return best, feasible
 }

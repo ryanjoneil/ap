@@ -36,7 +36,7 @@ func Unscale(x int64, scale float64) any {
 // ScaleFlag registers the -scale flag on fs and returns a pointer to its
 // value. A value of 0, the default, means no scaling.
 func ScaleFlag(fs *flag.FlagSet) *float64 {
-	return fs.Float64("scale", 0, "multiply costs by `k` and round them to integers, to accept non-integer costs (0, the default, means off)")
+	return fs.Float64("scale", 0, "multiply costs by `s` and round them to integers, to accept non-integer costs (0, the default, means off)")
 }
 
 // Parse parses args with fs. The caller creates fs with flag.ContinueOnError,
