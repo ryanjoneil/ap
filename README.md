@@ -313,10 +313,12 @@ fmt.Println(p, a.Cost()) // [1 2 0] 49
 ```
 
 Both variants report dual prices and reduced costs, and both are incremental:
-`Remove` forbids an edge, and the next `Assign` re-solves from the previous
-solution rather than starting over. `ReducedCost` returns `(T, bool)`, where
-the bool is false for an edge that is missing or removed. `Copy` returns an
-independent solver, which makes it easy to explore what-if removals.
+`Fix(u, v, false)` forbids an edge and `Fix(u, v, true)` requires it, and the
+next `Assign` re-solves from the previous solution rather than starting over.
+Fixes that conflict, such as requiring a forbidden edge, make `Assign` return
+`ap.ErrInfeasible`. `ReducedCost` returns `(T, bool)`, where the bool is false
+for an edge that is missing, forbidden, or blocked by a required edge. `Copy`
+returns an independent solver, which makes it easy to explore what-if fixes.
 
 ```go
 a, err := lsap.NewSparse(3, []ap.Edge[int64]{
@@ -337,21 +339,26 @@ rc, ok := a.ReducedCost(0, 0)
 fmt.Println(rc, ok) // 2 true
 
 b := a.Copy()
-b.Remove(0, 1)
+b.Fix(0, 1, false)
 p, err = b.Assign()
 fmt.Println(p, b.Cost(), err) // [0 2 1] 13 <nil>
 fmt.Println(a.Cost())         // 8: a is unchanged
 
-b.Remove(2, 1)
+b.Fix(2, 1, false)
 _, err = b.Assign()
 fmt.Println(errors.Is(err, ap.ErrInfeasible)) // true
+
+c := a.Copy()
+c.Fix(1, 2, true) // require row 1 to take column 2
+p, err = c.Assign()
+fmt.Println(p, c.Cost(), err) // [0 2 1] 13 <nil>
 ```
 
 ### `ap/mcm`: maximum cardinality matching solver
 
 Package `ap/mcm` finds a maximum cardinality matching in a bipartite graph,
 given as a boolean adjacency matrix with `New` or as edges with `NewSparse`.
-It also supports `Remove`, incremental re-solve and `Copy`.
+It also supports `Fix`, incremental re-solve and `Copy`.
 
 ```bash
 go get github.com/ryanjoneil/ap/mcm
@@ -363,17 +370,22 @@ if err != nil {
     log.Fatal(err)
 }
 
-fmt.Println(m.Match()) // [0 2]: entry u is the column matched to u, or -1
-fmt.Println(m.Size())  // 2
+mate, err := m.Match()
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(mate)     // [0 2]: entry u is the column matched to u, or -1
+fmt.Println(m.Size()) // 2
 ```
 
 `Assign` returns the matching as a `Permutation` when it is perfect, and
-`ap.ErrInfeasible` otherwise.
+`ap.ErrInfeasible` otherwise. `Match` returns `ap.ErrInfeasible` only when
+fixes conflict.
 
 ### `ap/lbap`: linear bottleneck assignment problem solver
 
 Package `ap/lbap` solves the bottleneck variant with a threshold algorithm. It
-offers `New`, `NewSparse`, `Assign`, `Cost`, `Remove` and `Copy`, like `lsap`.
+offers `New`, `NewSparse`, `Assign`, `Cost`, `Fix` and `Copy`, like `lsap`.
 Many assignments are often optimal for a bottleneck problem. Which one is
 returned is deterministic but otherwise unspecified.
 

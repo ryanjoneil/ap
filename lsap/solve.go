@@ -26,26 +26,41 @@ func (a *dense[T]) solve() {
 // dual prices within the margin a.b (see margin), which makes the unchecked
 // reduced costs in its inner loop safe. If an update would leave the margin,
 // path sets a.overflow and returns −1 without making it.
+//
+// As a departure from the source, path removes every required column from uc
+// before the search starts, so it never labels one, and never reaches a
+// required row, whose only way in is its required column (see dense). The
+// dual update skips required columns, so it leaves their v[j] and pi[j]
+// alone.
 func (a *dense[T]) path(i int) int {
 	lr := []int{i}          // Vector of labelled rows
 	uc := make([]bool, a.n) // uc[j] = true if column j is unlabelled
+	fixed := a.fixRow       // fixed[j] ≥ 0 if column j is required; nil if none is
 
 	for j := 0; j < a.n; j++ {
 		uc[j] = true
 		a.pi[j] = a.maxT
 	}
+	for j, r := range fixed {
+		if r >= 0 {
+			uc[j] = false
+		}
+	}
 
 	for {
 		r := lr[len(lr)-1]
 
-		for j := 0; j < a.n; j++ {
+		// Locals: otherwise the loop reloads each through a, and its speed
+		// is layout-sensitive.
+		ar, ur, v, pi, c := a.a[r], a.u[r], a.v, a.pi, a.c
+		for j := range uc {
 			if !uc[j] {
 				continue
 			}
-			val := a.a[r][j] - a.u[r] - a.v[j]
-			if val < a.pi[j] {
-				a.pi[j] = val
-				a.c[j] = r
+			val := ar[j] - ur - v[j]
+			if val < pi[j] {
+				pi[j] = val
+				c[j] = r
 			}
 		}
 
@@ -81,10 +96,13 @@ func (a *dense[T]) path(i int) int {
 				a.u[h] += d
 			}
 
-			// The columns with pi[j] == 0 are the labelled ones. Every
-			// unlabelled column has pi[j] ≥ d, as d is their minimum, so
-			// pi[j] − d ≥ 0.
+			// The columns with pi[j] == 0 are the labelled ones, apart from
+			// the required ones, which are skipped. Every unlabelled column
+			// has pi[j] ≥ d, as d is their minimum, so pi[j] − d ≥ 0.
 			for j := 0; j < a.n; j++ {
+				if fixed != nil && fixed[j] >= 0 {
+					continue
+				}
 				if a.pi[j] == 0 {
 					if d > a.v[j]+a.b {
 						a.overflow = true

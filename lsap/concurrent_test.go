@@ -39,7 +39,7 @@ func TestConcurrentCopy(t *testing.T) {
 				defer wg.Done()
 				a := parent.Copy()
 				u := w % n
-				a.Remove(u, p[u])
+				a.Fix(u, p[u], false)
 				q, err := a.Assign()
 				results[w] = result{q, a.Cost(), err}
 			}()

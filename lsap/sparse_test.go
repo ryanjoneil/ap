@@ -66,14 +66,14 @@ func TestSparseIsolated(t *testing.T) {
 }
 
 // Review Focus 4.
-func TestSparseRemoveWholeRow(t *testing.T) {
+func TestSparseForbidWholeRow(t *testing.T) {
 	a, _ := lsap.NewSparse(2, []ap.Edge[int64]{
 		{U: 0, V: 0, Cost: 1}, {U: 0, V: 1, Cost: 2}, {U: 1, V: 0, Cost: 3}, {U: 1, V: 1, Cost: 4},
 	})
 	_, _ = a.Assign()
 	b := a.Copy()
-	a.Remove(0, 0)
-	a.Remove(0, 1)
+	a.Fix(0, 0, false)
+	a.Fix(0, 1, false)
 	if _, err := a.Assign(); !errors.Is(err, ap.ErrInfeasible) {
 		t.Errorf("got %v", err)
 	}
@@ -87,20 +87,20 @@ func TestSparseCopyIndependent(t *testing.T) {
 	c := [][]int64{{4, 1, 3}, {2, 0, 5}, {3, 2, 2}}
 	a := newSparse(t, 3, fullEdges(c))
 	_, _ = a.Assign()
-	a.Remove(0, 0) // Not assigned; the copy must inherit this removal.
+	a.Fix(0, 0, false) // Not assigned; the copy must inherit this removal.
 	b := a.Copy()
-	b.Remove(0, 1)
-	b.Remove(1, 1)
+	b.Fix(0, 1, false)
+	b.Fix(1, 1, false)
 	pa, _ := a.Assign()
 	if a.Cost() != 5 || !reflect.DeepEqual(pa, ap.Permutation{1, 0, 2}) {
 		t.Errorf("original changed: %v %v", pa, a.Cost())
 	}
 	if _, ok := a.ReducedCost(1, 1); !ok {
-		t.Error("Remove on the copy removed the edge from the original")
+		t.Error("Fix on the copy forbade the edge in the original")
 	}
-	a.Remove(2, 2)
+	a.Fix(2, 2, false)
 	if _, ok := b.ReducedCost(2, 2); !ok {
-		t.Error("Remove on the original removed the edge from the copy")
+		t.Error("Fix on the original forbade the edge in the copy")
 	}
 	if _, ok := b.ReducedCost(0, 0); ok {
 		t.Error("copy lost a removal made before Copy")
@@ -118,9 +118,9 @@ func TestSparseCopyIndependent(t *testing.T) {
 	}
 }
 
-// Remove each assigned edge in turn, re-solve, and compare with brute force on
+// Forbid each assigned edge in turn, re-solve, and compare with brute force on
 // the shrinking mask.
-func TestSparseRemoveIncremental(t *testing.T) {
+func TestSparseForbidIncremental(t *testing.T) {
 	for trial := 0; trial < 300; trial++ {
 		rng := rand.New(rand.NewSource(int64(trial)))
 		n := 2 + rng.Intn(5)
@@ -194,7 +194,7 @@ func TestNewSparseCopiesInput(t *testing.T) {
 	edges := []ap.Edge[int64]{{U: 1, V: 1, Cost: 4}, {U: 0, V: 0, Cost: 1}, {U: 0, V: 1, Cost: 2}}
 	orig := append([]ap.Edge[int64](nil), edges...)
 	a := newSparse(t, 2, edges)
-	a.Remove(0, 0)
+	a.Fix(0, 0, false)
 	_, _ = a.Assign()
 	if !reflect.DeepEqual(edges, orig) {
 		t.Errorf("input modified: %v", edges)
@@ -211,8 +211,8 @@ func TestSparseReducedCostMissing(t *testing.T) {
 			t.Errorf("ReducedCost(%v, %v): want ok == false", e[0], e[1])
 		}
 	}
-	a.Remove(0, 1) // missing: a no-op
-	a.Remove(5, 5) // out of range: a no-op
+	a.Fix(0, 1, false) // missing: a no-op
+	a.Fix(5, 5, false) // out of range: a no-op
 	if _, err := a.Assign(); err != nil || a.Cost() != 2 {
 		t.Errorf("got %v, cost %v", err, a.Cost())
 	}

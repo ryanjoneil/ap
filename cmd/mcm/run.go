@@ -74,7 +74,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return cli.Fail(stderr, name, err)
 	}
 
-	match := m.Match()
+	match, err := m.Match()
+	if err != nil {
+		return cli.Fail(stderr, name, err)
+	}
 	out := output{
 		Status:   cli.StatusOptimal,
 		Size:     m.Size(),

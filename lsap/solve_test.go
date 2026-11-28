@@ -157,20 +157,20 @@ func TestNewCopiesInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.Remove(0, 0)
+	a.Fix(0, 0, false)
 	_, _ = a.Assign()
 	if !reflect.DeepEqual(c, [][]int64{{1, 2}, {3, 4}}) {
 		t.Errorf("input modified: %v", c)
 	}
 }
 
-func TestRemoveInfeasible(t *testing.T) {
+func TestForbidInfeasible(t *testing.T) {
 	a, err := lsap.New([][]int64{{1, 2}, {3, 4}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.Remove(0, 0)
-	a.Remove(0, 1)
+	a.Fix(0, 0, false)
+	a.Fix(0, 1, false)
 	if _, err := a.Assign(); !errors.Is(err, ap.ErrInfeasible) {
 		t.Errorf("got %v; want ErrInfeasible", err)
 	}
@@ -198,7 +198,7 @@ func checkMasked[T ap.Integer](t *testing.T, c [][]T, ok [][]bool) {
 	for i := range ok {
 		for j := range ok[i] {
 			if !ok[i][j] {
-				a.Remove(i, j)
+				a.Fix(i, j, false)
 			}
 		}
 	}
@@ -228,7 +228,7 @@ func checkMasked[T ap.Integer](t *testing.T, c [][]T, ok [][]bool) {
 
 // Random removals: the result matches brute force with the same mask, and
 // never uses a removed edge.
-func TestRemoveMatchesBruteForce(t *testing.T) {
+func TestForbidMatchesBruteForce(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	for trial := 0; trial < 1000; trial++ {
 		n := 1 + rng.Intn(6)
@@ -253,15 +253,15 @@ func TestCopyIndependent(t *testing.T) {
 	}
 	_, _ = a.Assign()
 	b := a.Copy()
-	b.Remove(0, 1)
-	b.Remove(1, 1)
+	b.Fix(0, 1, false)
+	b.Fix(1, 1, false)
 	pa, _ := a.Assign()
 	if a.Cost() != 5 || !reflect.DeepEqual(pa, ap.Permutation{1, 0, 2}) {
 		t.Errorf("original changed: %v %v", pa, a.Cost())
 	}
-	a.Remove(2, 2)
+	a.Fix(2, 2, false)
 	if _, ok := b.ReducedCost(2, 2); !ok {
-		t.Error("Remove on the original removed the edge from the copy")
+		t.Error("Fix on the original forbade the edge in the copy")
 	}
 	pb, _ := b.Assign()
 	want, _ := bruteforce.MinSum(c, [][]bool{{true, false, true}, {true, false, true}, {true, true, true}})

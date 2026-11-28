@@ -18,7 +18,15 @@ import (
 // problem re-solved incrementally from the current primal and dual solution.
 // The cost rows are copied on write, so that Copy is cheap. Copy marks the
 // source's rows as shared, so owned is atomic: several goroutines may call
-// Copy on the same kernel at once. Only copy and remove touch owned.
+// Copy on the same kernel at once. Only copy and fix touch owned.
+//
+// Departure from the source: an edge (i, j) can be required. fix assigns i to
+// j and sets u[i] so that the edge has reduced cost 0, and path never labels
+// column j, so it never reaches row i either, and never changes u[i] or v[j].
+// The rest of the problem is then solved as APC would solve it with row i and
+// column j deleted, and the dual prices satisfy complementary slackness on
+// every required edge. Every other edge in row i or column j is unavailable,
+// but its cost is left alone, so requiring an edge copies no cost rows.
 //
 // Departure from the source: APC does its arithmetic unchecked, in a type
 // assumed wide enough. Here the kernel keeps every dual price within the
@@ -37,7 +45,11 @@ type dense[T ap.Integer] struct {
 	b        T    // Margin: every |u[i]| and |v[j]| is at most b
 	removed  bool // True once an edge has been removed, so that m is a cost
 	overflow bool // True once solving would overflow T; sticky
+	conflict bool // True once the fixes conflict; sticky
 	sumFits  bool // True if n·a0 fits in T, so that no cost sum overflows
+
+	fixCol []int // fixCol[i] = column required for row i, -1 if none; nil if none at all
+	fixRow []int // fixRow[j] = row required for column j, -1 if none; nil if none at all
 
 	a     [][]T         // a[i][j] = cost of assigning row i to column j
 	owned []atomic.Bool // owned[i] = true if a[i] is not shared with another kernel
@@ -142,14 +154,17 @@ func abs[T ap.Integer](x T) T {
 // after a removal that assign hasn't seen yet.
 //
 // The dual prices change only in initialize, which checks each one against b
-// before using it, and in path. After initialize, path only raises u and
-// lowers v, by d = min pi[j] over the unlabelled columns. Each pi[j] is a
-// reduced cost, so 0 ≤ d ≤ maxT − 1 by dual feasibility and the bound above.
+// before using it, in path, and in require, which sets u[i] for a required
+// edge (i, j) (see require). After initialize, path only raises u and lowers
+// v, by d = min pi[j] over the unlabelled columns. Each pi[j] is a reduced
+// cost, so 0 ≤ d ≤ maxT − 1 by dual feasibility and the bound above.
 // So path checks only d ≤ b − u[i] and d ≤ v[j] + b. With |u[i]|, |v[j]| ≤ b,
 // both right-hand sides lie in [0, 2b] and can't overflow. path also lowers
-// each unlabelled pi[j] by d, and pi[j] ≥ d, so pi[j] − d ≥ 0. remove and
-// increase don't touch the dual prices, but remove can raise A, which lowers
-// b, so assign recomputes b and rechecks every dual price before solving.
+// each unlabelled pi[j] by d, and pi[j] ≥ d, so pi[j] − d ≥ 0. increase
+// doesn't touch the dual prices. fix(i, j, false) doesn't either, but unless a
+// required edge already blocks (i, j), it can raise A, which lowers b. fix(i, j, true) sets u[i] = a[i][j] − v[j], which
+// can leave the margin. So assign recomputes b and rechecks every dual price
+// before solving.
 //
 // a0 ≤ maxT, since no cost is the smallest value of T, and |m| ≤ maxT − 1,
 // since minC < m < maxT. So maxT − A − 1 doesn't overflow, and it is
@@ -192,21 +207,22 @@ func bigM[T ap.Integer](n int, minC, maxC T) (T, bool) {
 
 // assign rechecks the dual prices against the current margin, solves, and
 // sums the cost of the assignment, with checked additions unless n·a0 fits in
-// T.
+// T. A sticky overflow takes precedence over conflicting fixes.
 func (a *dense[T]) assign() (ap.Permutation, error) {
-	if !a.overflow {
-		a.b = a.margin()
-		for i := 0; i < a.n; i++ {
-			if !a.inMargin(a.u[i]) || !a.inMargin(a.v[i]) {
-				a.overflow = true
-				break
-			}
+	if a.overflow {
+		return nil, ap.ErrOverflow
+	}
+	if a.conflict {
+		return nil, ap.ErrInfeasible
+	}
+	a.b = a.margin()
+	for i := 0; i < a.n; i++ {
+		if !a.inMargin(a.u[i]) || !a.inMargin(a.v[i]) {
+			a.overflow = true
+			return nil, ap.ErrOverflow
 		}
 	}
-	if !a.overflow {
-		a.solve()
-	}
-	if a.overflow {
+	if a.solve(); a.overflow {
 		return nil, ap.ErrOverflow
 	}
 
@@ -254,18 +270,92 @@ func (a *dense[T]) inRange(i, j int) bool {
 	return i >= 0 && i < a.n && j >= 0 && j < a.n
 }
 
+// blocked reports whether edge (i, j) is unavailable because row i or column
+// j is required by a different edge.
+func (a *dense[T]) blocked(i, j int) bool {
+	if a.fixCol == nil {
+		return false
+	}
+	ci, rj := a.fixCol[i], a.fixRow[j]
+	return (ci >= 0 && ci != j) || (rj >= 0 && rj != i)
+}
+
 func (a *dense[T]) reducedCost(i, j int) (T, bool) {
-	if !a.inRange(i, j) || a.a[i][j] == a.m {
+	if !a.inRange(i, j) || a.a[i][j] == a.m || a.blocked(i, j) {
 		return 0, false
 	}
 	return a.a[i][j] - a.u[i] - a.v[j], true
 }
 
+// fix requires edge (i, j) if value is true, and forbids it otherwise. A
+// conflict sets the sticky conflict flag and changes nothing else.
+func (a *dense[T]) fix(i, j int, value bool) {
+	if !a.inRange(i, j) {
+		return
+	}
+	if value {
+		a.require(i, j)
+		return
+	}
+	if a.fixCol != nil && a.fixCol[i] == j {
+		a.conflict = true
+		return
+	}
+	if a.blocked(i, j) {
+		return // already unavailable; removing it would only shrink the margin
+	}
+	a.remove(i, j)
+}
+
+// require requires edge (i, j). It unassigns row i's column and column j's
+// row, unless either is already the other, assigns i to j, and sets u[i] so
+// that the edge has reduced cost 0. If i was already assigned to j, then u[i]
+// is unchanged, since assigned edges have reduced cost 0.
+//
+// u[i] = a[i][j] − v[j] can't overflow. The edge isn't removed, so
+// |a[i][j]| ≤ a0. Every v[j] was checked against the margin at the time, and
+// the margin is largest before any removal, so |v[j]| ≤ (maxT − a0 − 1)/2.
+// Their difference is at most a0 + (maxT − a0 − 1)/2 < maxT in magnitude.
+// u[i] can be outside the current margin; assign rechecks it, and path never
+// reads it, since it never reaches row i. Nor does reducedCost, except for
+// edge (i, j) itself, where a[i][j] − u[i] = v[j] exactly, so neither
+// subtraction overflows; every other edge in row i is blocked.
+func (a *dense[T]) require(i, j int) {
+	if a.fixCol != nil && a.fixCol[i] == j {
+		return
+	}
+	if (a.fixCol != nil && (a.fixCol[i] >= 0 || a.fixRow[j] >= 0)) || a.a[i][j] == a.m {
+		a.conflict = true
+		return
+	}
+	if a.fixCol == nil {
+		a.fixCol = make([]int, a.n)
+		a.fixRow = make([]int, a.n)
+		for k := range a.fixCol {
+			a.fixCol[k] = -1
+			a.fixRow[k] = -1
+		}
+	}
+
+	if k := a.f[i]; k >= 0 && k != j {
+		a.fBar[k] = -1
+	}
+	if r := a.fBar[j]; r >= 0 && r != i {
+		a.f[r] = -1
+	}
+	a.f[i] = j
+	a.fBar[j] = i
+	a.u[i] = a.a[i][j] - a.v[j]
+	a.fixCol[i] = j
+	a.fixRow[j] = i
+}
+
 // remove sets the cost of edge (i, j) to m, first copying row i if it is
 // shared with another kernel. If the edge is assigned, it is unassigned, so
-// the next solve re-optimizes row i.
+// the next solve re-optimizes row i. It is a no-op if the edge is already
+// removed.
 func (a *dense[T]) remove(i, j int) {
-	if !a.inRange(i, j) || a.a[i][j] == a.m {
+	if a.a[i][j] == a.m {
 		return
 	}
 	if !a.owned[i].Load() {
@@ -282,11 +372,18 @@ func (a *dense[T]) remove(i, j int) {
 
 // copy shares the cost rows between a and the copy, and marks them as not
 // owned in both, so that whichever kernel next removes an edge from a row
-// copies that row first. Apart from the atomic stores to a.owned, it only
-// reads a, so concurrent calls to copy on the same kernel are safe.
+// copies that row first. It clones the requirements, if any. Apart from the
+// atomic stores to a.owned, it only reads a, so concurrent calls to copy on
+// the same kernel are safe.
 func (a *dense[T]) copy() kernel[T] {
 	for i := range a.owned {
 		a.owned[i].Store(false)
+	}
+
+	var fixCol, fixRow []int
+	if a.fixCol != nil {
+		fixCol = append([]int(nil), a.fixCol...)
+		fixRow = append([]int(nil), a.fixRow...)
 	}
 
 	return &dense[T]{
@@ -298,7 +395,11 @@ func (a *dense[T]) copy() kernel[T] {
 		b:        a.b,
 		removed:  a.removed,
 		overflow: a.overflow,
+		conflict: a.conflict,
 		sumFits:  a.sumFits,
+
+		fixCol: fixCol,
+		fixRow: fixRow,
 
 		a:     append([][]T(nil), a.a...),
 		owned: make([]atomic.Bool, a.n),

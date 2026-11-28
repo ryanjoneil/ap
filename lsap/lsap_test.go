@@ -27,8 +27,8 @@ func Example() {
 	rc, _ := a.ReducedCost(1, 1)
 	fmt.Println(rc)
 
-	// Remove an edge from the optimal solution and re-solve.
-	a.Remove(0, 1)
+	// Forbid an edge of the optimal solution and re-solve.
+	a.Fix(0, 1, false)
 	p, err = a.Assign()
 	if err != nil {
 		panic(err)
